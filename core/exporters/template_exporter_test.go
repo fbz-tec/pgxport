@@ -79,6 +79,7 @@ func TestExportTemplateFull(t *testing.T) {
 				Format:            FormatTemplate,
 				TemplateFile:      tplPath,
 				TemplateStreaming: false,
+				Compression:       "none",
 			}
 
 			_, err = exporter.Export(rows, outPath, opts)
@@ -125,6 +126,7 @@ func TestExportTemplateStreaming(t *testing.T) {
 		TemplateHeader:    header,
 		TemplateFooter:    footer,
 		TemplateStreaming: true,
+		Compression:       "none",
 	}
 
 	_, err = exporter.Export(rows, outPath, opts)
@@ -195,6 +197,7 @@ func TestExportTemplateTimeFormatting(t *testing.T) {
 		Format:       FormatTemplate,
 		TemplateFile: tpl,
 		TimeFormat:   "yyyy-MM-dd HH:mm",
+		Compression:  "none",
 	}
 
 	_, err := exporter.Export(rows, outPath, opts)
@@ -232,6 +235,7 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	opts := ExportOptions{
 		Format:       FormatTemplate,
 		TemplateFile: tpl,
+		Compression:  "none",
 	}
 
 	_, err := exporter.Export(rows, outPath, opts)
@@ -274,6 +278,7 @@ func TestExportTemplateLargeDataset(t *testing.T) {
 	opts := ExportOptions{
 		Format:       FormatTemplate,
 		TemplateFile: tpl,
+		Compression:  "none",
 	}
 
 	count, err := exporter.Export(rows, outPath, opts)
