@@ -337,6 +337,34 @@ func FormatXLSXValue(value interface{}, oid uint32, timeFormat, timeZone string)
 	return formatValueByOID(value, oid, timeFormat, timeZone)
 }
 
+// FormatTemplateValue formats a PostgreSQL value for template-based exports.
+func FormatTemplateValue(val interface{}, oid uint32, userTimefmt string, timeZone string) interface{} {
+
+	if val == nil {
+		return nil
+	}
+
+	base := formatValueByOID(val, oid, userTimefmt, timeZone)
+
+	if oid == pgtype.JSONBOID || oid == pgtype.JSONOID {
+		b, err := json.Marshal(base)
+		if err != nil {
+			return "{}"
+		}
+		return string(b)
+	}
+
+	if arr, ok := base.([]interface{}); ok {
+		b, err := json.Marshal(arr)
+		if err != nil {
+			return "[]"
+		}
+		return string(b)
+	}
+
+	return base
+}
+
 func QuoteIdent(s string) string {
 	parts := strings.Split(s, ".")
 	for i, part := range parts {

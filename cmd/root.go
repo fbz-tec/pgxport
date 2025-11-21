@@ -41,6 +41,12 @@ var (
 	dbUser     string
 	dbName     string
 	dbPassword string
+	// template file
+	templateFile      string
+	templateHeader    string
+	templateRow       string
+	templateFooter    string
+	templateStreaming bool
 )
 
 var rootCmd = &cobra.Command{
@@ -112,6 +118,12 @@ func init() {
 	// SQL options
 	rootCmd.Flags().StringVarP(&tableName, "table", "t", "", "Table name for SQL insert exports")
 	rootCmd.Flags().IntVarP(&rowPerStatement, "insert-batch", "", 1, "Number of rows per INSERT statement in SQL export")
+
+	// Template options
+	rootCmd.Flags().StringVar(&templateFile, "tpl-file", "", "Path to template file")
+	rootCmd.Flags().StringVar(&templateHeader, "tpl-header", "", "Optional header template file (streaming mode)")
+	rootCmd.Flags().StringVar(&templateRow, "tpl-row", "", "Row template file (streaming mode)")
+	rootCmd.Flags().StringVar(&templateFooter, "tpl-footer", "", "Optional footer template file (streaming mode)")
 
 	// Date FORMATTING
 	rootCmd.Flags().StringVarP(&timeFormat, "time-format", "T", "yyyy-MM-dd HH:mm:ss", "Custom time format (e.g. yyyy-MM-ddTHH:mm:ss.SSS)")
@@ -239,17 +251,28 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	defer store.Close()
 
+	if templateFile != "" {
+		templateStreaming = false
+	} else {
+		templateStreaming = true
+	}
+
 	options := exporters.ExportOptions{
-		Format:          format,
-		Delimiter:       delimRune,
-		TableName:       tableName,
-		Compression:     compression,
-		TimeFormat:      timeFormat,
-		TimeZone:        timeZone,
-		NoHeader:        noHeader,
-		XmlRootElement:  xmlRootElement,
-		XmlRowElement:   xmlRowElement,
-		RowPerStatement: rowPerStatement,
+		Format:            format,
+		Delimiter:         delimRune,
+		TableName:         tableName,
+		Compression:       compression,
+		TimeFormat:        timeFormat,
+		TimeZone:          timeZone,
+		NoHeader:          noHeader,
+		XmlRootElement:    xmlRootElement,
+		XmlRowElement:     xmlRowElement,
+		RowPerStatement:   rowPerStatement,
+		TemplateFile:      templateFile,
+		TemplateHeader:    templateHeader,
+		TemplateRow:       templateRow,
+		TemplateFooter:    templateFooter,
+		TemplateStreaming: templateStreaming,
 	}
 
 	exporter, err = exporters.GetExporter(format)
@@ -339,6 +362,22 @@ func validateExportParams() error {
 
 	if format == "sql" && rowPerStatement < 1 {
 		return fmt.Errorf("error: --insert-batch must be at least 1")
+	}
+
+	if format == "template" {
+		hasFull := templateFile != ""
+		hasStreaming := templateRow != "" || templateHeader != "" || templateFooter != ""
+		if hasFull && hasStreaming {
+			return fmt.Errorf("template export error: use either --tpl-file (full mode) OR --tpl-row (streaming mode), not both")
+		}
+		if hasStreaming {
+			if templateRow == "" {
+				return fmt.Errorf("template streaming mode requires --tpl-row to be specified")
+			}
+		}
+		if !hasFull && !hasStreaming {
+			return fmt.Errorf("template format requires either --tpl-file (full mode) OR --tpl-row")
+		}
 	}
 
 	// Validate time format if provided

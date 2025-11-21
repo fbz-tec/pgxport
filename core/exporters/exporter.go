@@ -5,12 +5,13 @@ import (
 )
 
 const (
-	FormatCSV  = "csv"
-	FormatJSON = "json"
-	FormatXML  = "xml"
-	FormatSQL  = "sql"
-	FormatYAML = "yaml"
-	FormatXLSX = "xlsx"
+	FormatCSV      = "csv"
+	FormatJSON     = "json"
+	FormatXML      = "xml"
+	FormatSQL      = "sql"
+	FormatYAML     = "yaml"
+	FormatXLSX     = "xlsx"
+	FormatTemplate = "template"
 )
 
 // ExportOptions holds export configuration
@@ -25,6 +26,12 @@ type ExportOptions struct {
 	XmlRootElement  string
 	XmlRowElement   string
 	RowPerStatement int
+	// Template mode (dual mode)
+	TemplateFile      string // full mode
+	TemplateHeader    string // streaming header
+	TemplateRow       string // streaming row (required for streaming)
+	TemplateFooter    string // streaming footer
+	TemplateStreaming bool   // enable streaming mode
 }
 
 // Exporter interface defines export operations

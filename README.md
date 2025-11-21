@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/fbz-tec/pgxport)](https://goreportcard.com/report/github.com/fbz-tec/pgxport)
 [![License](https://img.shields.io/github/license/fbz-tec/pgxport.svg)](LICENSE)
 
-A simple, powerful and efficient CLI tool to export PostgreSQL query results to various formats (CSV, XML, JSON ,YAML ,XLSX ,SQL).
+A simple, powerful and efficient CLI tool to export PostgreSQL query results to various formats (CSV, XML, JSON ,YAML ,XLSX ,SQL, template).
 
 ---
 
@@ -32,7 +32,7 @@ A simple, powerful and efficient CLI tool to export PostgreSQL query results to 
 
 - 🚀 Execute SQL queries directly from command line
 - 📄 Run SQL queries from files
-- 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** and **Microsoft Excel (XLSX)**
+- 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** , **Microsoft Excel (XLSX)** and **Template** for other formats
 - ⚡ High-performance CSV export using PostgreSQL native **COPY** mode (`--with-copy`)
 - 🔧 Customizable CSV delimiter and header
 - 🗜️ Compression: **gzip** / **zip** 
