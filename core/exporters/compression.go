@@ -117,7 +117,7 @@ func determineZipEntryName(outputPath, format string) string {
 		name = "export"
 	}
 
-	if !strings.HasSuffix(name, "."+format) {
+	if !strings.HasSuffix(name, "."+format) && format != FormatTemplate {
 		name = fmt.Sprintf("%s.%s", name, format)
 	}
 
