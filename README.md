@@ -1,4 +1,6 @@
-# pgxport
+<p align="center">
+  <img src="logo.png" alt="pgXport" />
+</p>
 
 [![CI - Build, Test & Release](https://github.com/fbz-tec/pgxport/actions/workflows/ci.yml/badge.svg)](https://github.com/fbz-tec/pgxport/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fbz-tec/pgxport)](https://goreportcard.com/report/github.com/fbz-tec/pgxport)
