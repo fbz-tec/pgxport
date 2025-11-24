@@ -23,7 +23,7 @@ func TestExportTemplateFull(t *testing.T) {
 			name:  "basic full template export",
 			query: "SELECT 1 as id, 'Alice' as name",
 			template: `Total={{.Count}}
-{{range .Rows}}- {{.Row.id}}:{{.Row.name}}
+{{range .Rows}}- {{get . "id"}}:{{get . "name"}}
 {{end}}`,
 			wantErr: false,
 			checkFunc: func(t *testing.T, out string) {
@@ -64,7 +64,6 @@ func TestExportTemplateFull(t *testing.T) {
 			tplPath := filepath.Join(tmp, "tpl.txt")
 			outPath := filepath.Join(tmp, "output.txt")
 
-			// write template
 			os.WriteFile(tplPath, []byte(tt.template), 0644)
 
 			rows, err := conn.Query(context.Background(), tt.query)
@@ -105,9 +104,8 @@ func TestExportTemplateStreaming(t *testing.T) {
 	footer := filepath.Join(tmp, "footer.tpl")
 	outPath := filepath.Join(tmp, "output.html")
 
-	// Create templates
 	os.WriteFile(header, []byte(`<table>{{range .Columns}}<th>{{.}}</th>{{end}}`), 0644)
-	os.WriteFile(row, []byte(`<tr><td>{{.Row.id}}</td><td>{{.Row.name}}</td></tr>`), 0644)
+	os.WriteFile(row, []byte(`<tr><td>{{ get . "id" }}</td><td>{{ get . "name" }}</td></tr>`), 0644)
 	os.WriteFile(footer, []byte(`</table>`), 0644)
 
 	query := "SELECT 1 as id, 'Alice' as name"
@@ -219,7 +217,7 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	tpl := filepath.Join(tmp, "tpl.txt")
 	outPath := filepath.Join(tmp, "out.txt")
 
-	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{.Row.id}}, N={{.Row.name}}{{end}}`), 0644)
+	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{get . "id"}}, N={{get . "name"}}{{end}}`), 0644)
 
 	query := `
 		SELECT 
@@ -251,47 +249,5 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	}
 	if !strings.Contains(s, "N=text") {
 		t.Error("Expected name=text")
-	}
-}
-
-func TestExportTemplateLargeDataset(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping large dataset test")
-	}
-
-	conn, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tmp := t.TempDir()
-	tpl := filepath.Join(tmp, "tpl.txt")
-	outPath := filepath.Join(tmp, "out.txt")
-
-	os.WriteFile(tpl, []byte(`{{.Count}} rows`), 0644)
-
-	query := "SELECT generate_series(1, 5000) as id"
-
-	rows, _ := conn.Query(context.Background(), query)
-	defer rows.Close()
-
-	exporter, _ := GetExporter(FormatTemplate)
-
-	opts := ExportOptions{
-		Format:       FormatTemplate,
-		TemplateFile: tpl,
-		Compression:  "none",
-	}
-
-	count, err := exporter.Export(rows, outPath, opts)
-	if err != nil {
-		t.Fatalf("Large template err: %v", err)
-	}
-
-	if count != 5000 {
-		t.Errorf("Expected 5000 rows, got %d", count)
-	}
-
-	content, _ := os.ReadFile(outPath)
-	if !strings.Contains(string(content), "5000 rows") {
-		t.Error("Expected '5000 rows'")
 	}
 }

@@ -3,6 +3,7 @@ module github.com/fbz-tec/pgxport
 go 1.25.4
 
 require (
+	github.com/elliotchance/orderedmap/v3 v3.1.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.10.1
