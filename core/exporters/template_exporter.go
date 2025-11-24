@@ -8,9 +8,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -50,13 +52,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		keys[i] = string(f.Name)
 	}
 
-	type RowData struct {
-		Columns []string
-		Values  []interface{}
-		Row     map[string]interface{}
-	}
-
-	allRows := []RowData{}
+	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
 	rowCount := 0
 
 	for rows.Next() {
@@ -65,20 +61,9 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 			return rowCount, fmt.Errorf("error reading row: %w", err)
 		}
 
-		values := make([]interface{}, len(keys))
-		kv := make(map[string]interface{}, len(keys))
+		rowMap := buildRow(keys, vals, fields, options)
 
-		for i, k := range keys {
-			v := formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
-			values[i] = v
-			kv[k] = v
-		}
-
-		allRows = append(allRows, RowData{
-			Columns: keys,
-			Values:  values,
-			Row:     kv,
-		})
+		allRows = append(allRows, rowMap)
 
 		rowCount++
 	}
@@ -141,12 +126,6 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 		keys[i] = string(f.Name)
 	}
 
-	type RowData struct {
-		Columns []string
-		Values  []interface{}
-		Row     map[string]interface{}
-	}
-
 	generatedAt := time.Now().Format(time.RFC3339)
 
 	if tplHeader != nil {
@@ -168,22 +147,9 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 			return rowCount, fmt.Errorf("error reading row: %w", err)
 		}
 
-		values := make([]interface{}, len(keys))
-		kv := make(map[string]interface{}, len(keys))
+		rowMap := buildRow(keys, vals, fields, options)
 
-		for i, k := range keys {
-			v := formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
-			values[i] = v
-			kv[k] = v
-		}
-
-		row := RowData{
-			Columns: keys,
-			Values:  values,
-			Row:     kv,
-		}
-
-		if err := tplRow.Execute(writer, row); err != nil {
+		if err := tplRow.Execute(writer, rowMap); err != nil {
 			return rowCount, fmt.Errorf("error executing row template: %w", err)
 		}
 
@@ -253,6 +219,14 @@ func defaultTemplateFuncs() template.FuncMap {
 			}
 			return a / b
 		},
+		"get": func(m interface{}, key string) interface{} {
+			if mp, ok := m.(*orderedmap.OrderedMap[string, interface{}]); ok {
+				if val, ok := mp.Get(key); ok {
+					return val
+				}
+			}
+			return ""
+		},
 	}
 }
 
@@ -272,6 +246,15 @@ func loadTemplateIfExists(path string, required bool, funcs template.FuncMap) (*
 		return nil, fmt.Errorf("failed to parse template %q: %w", path, err)
 	}
 	return tpl, nil
+}
+
+func buildRow(keys []string, vals []interface{}, fields []pgconn.FieldDescription, opts ExportOptions) *orderedmap.OrderedMap[string, interface{}] {
+	row := orderedmap.NewOrderedMap[string, interface{}]()
+	for i, k := range keys {
+		v := formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, opts.TimeFormat, opts.TimeZone)
+		row.Set(k, v)
+	}
+	return row
 }
 
 func init() {
