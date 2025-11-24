@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"bufio"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -29,11 +28,7 @@ func (e *csvExporter) Export(rows pgx.Rows, csvPath string, options ExportOption
 
 	defer writerCloser.Close()
 
-	// Use buffered writer for better performance
-	bufferedWriter := bufio.NewWriter(writerCloser)
-	defer bufferedWriter.Flush()
-
-	writer := csv.NewWriter(bufferedWriter)
+	writer := csv.NewWriter(writerCloser)
 	writer.Comma = options.Delimiter
 	defer writer.Flush()
 

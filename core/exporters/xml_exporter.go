@@ -1,10 +1,8 @@
 package exporters
 
 import (
-	"bufio"
 	"encoding/xml"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
@@ -26,31 +24,27 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 	}
 	defer writeCloser.Close()
 
-	// Use buffered writer for better performance
-	bufferedWriter := bufio.NewWriter(writeCloser)
-	defer bufferedWriter.Flush()
-
 	// Encode to XML with indentation
-	encoder := xml.NewEncoder(bufferedWriter)
+	encoder := xml.NewEncoder(writeCloser)
 	encoder.Indent("", "  ")
 
 	// Write XML header
-	if _, err := bufferedWriter.WriteString(xml.Header); err != nil {
+	if _, err := writeCloser.Write([]byte(xml.Header)); err != nil {
 		return 0, fmt.Errorf("error writing XML header: %w", err)
 	}
 
 	logger.Debug("XML header written")
-
-	startResults := xml.StartElement{Name: xml.Name{Local: options.XmlRootElement}}
-	if err := encoder.EncodeToken(startResults); err != nil {
-		return 0, fmt.Errorf("error starting <%s>: %w", options.XmlRootElement, err)
-	}
 
 	// get fields names
 	fields := rows.FieldDescriptions()
 	keys := make([]string, len(fields))
 	for i, fd := range fields {
 		keys[i] = string(fd.Name)
+	}
+
+	startResults := xml.StartElement{Name: xml.Name{Local: options.XmlRootElement}}
+	if err := encoder.EncodeToken(startResults); err != nil {
+		return 0, fmt.Errorf("error starting <%s>: %w", options.XmlRootElement, err)
 	}
 
 	rowCount := 0
@@ -81,12 +75,12 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 				}
 				continue
 			}
-			isJSONLike := strings.HasPrefix(val, "{") || strings.HasPrefix(val, "[") || strings.Contains(val, "\":")
+			isJSONLike := len(val) > 0 && (val[0] == '{' || val[0] == '[')
 			if isJSONLike {
 				if err := encoder.EncodeToken(elem); err != nil {
 					return rowCount, fmt.Errorf("error opening <%s>: %w", field, err)
 				}
-				if _, err := bufferedWriter.WriteString(val); err != nil {
+				if _, err := writeCloser.Write([]byte(val)); err != nil {
 					return rowCount, fmt.Errorf("error writing raw value for <%s>: %w", field, err)
 				}
 				if err := encoder.EncodeToken(xml.EndElement{Name: elem.Name}); err != nil {
@@ -108,7 +102,6 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 		rowCount++
 
 		if rowCount%10000 == 0 {
-			bufferedWriter.Flush()
 			logger.Debug("%d XML rows written...", rowCount)
 		}
 
@@ -123,7 +116,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 	}
 
 	// Add final newline
-	if _, err := bufferedWriter.WriteString("\n"); err != nil {
+	if _, err := writeCloser.Write([]byte("\n")); err != nil {
 		return 0, fmt.Errorf("error writing final newline: %w", err)
 	}
 

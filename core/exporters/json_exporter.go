@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"bufio"
 	"fmt"
 	"time"
 
@@ -23,10 +22,6 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 	}
 	defer writeCloser.Close()
 
-	// Use buffered writer for better performance
-	bufferedWriter := bufio.NewWriter(writeCloser)
-	defer bufferedWriter.Flush()
-
 	// Get column names (keys)
 	fields := rows.FieldDescriptions()
 	keys := make([]string, len(fields))
@@ -37,7 +32,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 	}
 
 	// Write opening bracket
-	if _, err := bufferedWriter.WriteString("[\n"); err != nil {
+	if _, err := writeCloser.Write([]byte("[\n")); err != nil {
 		return 0, fmt.Errorf("error writing start of JSON array: %w", err)
 	}
 
@@ -55,7 +50,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 
 		// Write comma separator for subsequent entries
 		if rowCount > 0 {
-			if _, err := bufferedWriter.WriteString(",\n"); err != nil {
+			if _, err := writeCloser.Write([]byte(",\n")); err != nil {
 				return rowCount, fmt.Errorf("error writing comma for row %d: %w", rowCount, err)
 			}
 		}
@@ -67,17 +62,16 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 		}
 
 		// Write with indentation
-		if _, err := bufferedWriter.WriteString("  "); err != nil {
+		if _, err := writeCloser.Write([]byte("  ")); err != nil {
 			return rowCount, fmt.Errorf("error writing indentation for row %d: %w", rowCount, err)
 		}
-		if _, err := bufferedWriter.Write(jsonBytes); err != nil {
+		if _, err := writeCloser.Write(jsonBytes); err != nil {
 			return rowCount, fmt.Errorf("error writing JSON object for row %d: %w", rowCount, err)
 		}
 
 		rowCount++
 
 		if rowCount%10000 == 0 {
-			bufferedWriter.Flush()
 			logger.Debug("%d JSON objects written...", rowCount)
 		}
 	}
@@ -87,7 +81,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 	}
 
 	// Write closing bracket
-	if _, err := bufferedWriter.WriteString("\n]\n"); err != nil {
+	if _, err := writeCloser.Write([]byte("\n]\n")); err != nil {
 		return rowCount, fmt.Errorf("error writing end of JSON array: %w", err)
 	}
 
