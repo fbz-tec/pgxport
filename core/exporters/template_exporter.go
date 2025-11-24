@@ -147,8 +147,13 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 		Row     map[string]interface{}
 	}
 
+	generatedAt := time.Now().Format(time.RFC3339)
+
 	if tplHeader != nil {
-		headerData := map[string]interface{}{"Columns": keys}
+		headerData := map[string]interface{}{
+			"Columns":     keys,
+			"GeneratedAt": generatedAt,
+		}
 		if err := tplHeader.Execute(writer, headerData); err != nil {
 			return 0, fmt.Errorf("error executing header template: %w", err)
 		}
@@ -190,7 +195,12 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 	}
 
 	if tplFooter != nil {
-		if err := tplFooter.Execute(writer, nil); err != nil {
+		footerData := map[string]interface{}{
+			"Columns":     keys,
+			"GeneratedAt": generatedAt,
+			"Count":       rowCount,
+		}
+		if err := tplFooter.Execute(writer, footerData); err != nil {
 			return rowCount, fmt.Errorf("error executing footer template: %w", err)
 		}
 	}
