@@ -3,6 +3,7 @@ package exporters
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"text/template"
@@ -52,7 +53,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		keys[i] = string(f.Name)
 	}
 
-	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
+	allRows := []map[string]interface{}{}
 	rowCount := 0
 
 	for rows.Next() {
@@ -63,7 +64,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 
 		rowMap := buildRow(keys, vals, fields, options)
 
-		allRows = append(allRows, rowMap)
+		allRows = append(allRows, maps.Collect(rowMap.AllFromFront()))
 
 		rowCount++
 	}
@@ -149,7 +150,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 
 		rowMap := buildRow(keys, vals, fields, options)
 
-		if err := tplRow.Execute(writer, rowMap); err != nil {
+		if err := tplRow.Execute(writer, maps.Collect(rowMap.AllFromFront())); err != nil {
 			return rowCount, fmt.Errorf("error executing row template: %w", err)
 		}
 
@@ -218,14 +219,6 @@ func defaultTemplateFuncs() template.FuncMap {
 				return 0
 			}
 			return a / b
-		},
-		"get": func(m interface{}, key string) interface{} {
-			if mp, ok := m.(*orderedmap.OrderedMap[string, interface{}]); ok {
-				if val, ok := mp.Get(key); ok {
-					return val
-				}
-			}
-			return ""
 		},
 	}
 }
