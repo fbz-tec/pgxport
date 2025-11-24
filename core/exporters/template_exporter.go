@@ -50,7 +50,13 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		keys[i] = string(f.Name)
 	}
 
-	allRows := []map[string]interface{}{}
+	type RowData struct {
+		Columns []string
+		Values  []interface{}
+		Row     map[string]interface{}
+	}
+
+	allRows := []RowData{}
 	rowCount := 0
 
 	for rows.Next() {
@@ -59,12 +65,21 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 			return rowCount, fmt.Errorf("error reading row: %w", err)
 		}
 
-		entry := make(map[string]interface{}, len(keys))
+		values := make([]interface{}, len(keys))
+		kv := make(map[string]interface{}, len(keys))
+
 		for i, k := range keys {
-			entry[k] = formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			v := formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			values[i] = v
+			kv[k] = v
 		}
 
-		allRows = append(allRows, entry)
+		allRows = append(allRows, RowData{
+			Columns: keys,
+			Values:  values,
+			Row:     kv,
+		})
+
 		rowCount++
 	}
 
@@ -89,9 +104,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		return rowCount, fmt.Errorf("error executing template: %w", err)
 	}
 
-	elapsed := time.Since(start)
-	logger.Debug("TEMPLATE full export completed: %d rows in %.2fs", rowCount, elapsed.Seconds())
-
+	logger.Debug("TEMPLATE full export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
 }
 
@@ -103,7 +116,6 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 
 	funcs := defaultTemplateFuncs()
 
-	// Load header / row / footer templates
 	tplHeader, err := loadTemplateIfExists(options.TemplateHeader, false, funcs)
 	if err != nil {
 		return 0, err
@@ -123,14 +135,18 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 	}
 	defer writer.Close()
 
-	// Extract column names
 	fields := rows.FieldDescriptions()
 	keys := make([]string, len(fields))
 	for i, f := range fields {
 		keys[i] = string(f.Name)
 	}
 
-	// Execute header with columns
+	type RowData struct {
+		Columns []string
+		Values  []interface{}
+		Row     map[string]interface{}
+	}
+
 	if tplHeader != nil {
 		headerData := map[string]interface{}{"Columns": keys}
 		if err := tplHeader.Execute(writer, headerData); err != nil {
@@ -147,12 +163,22 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 			return rowCount, fmt.Errorf("error reading row: %w", err)
 		}
 
-		rowMap := make(map[string]interface{}, len(keys))
+		values := make([]interface{}, len(keys))
+		kv := make(map[string]interface{}, len(keys))
+
 		for i, k := range keys {
-			rowMap[k] = formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			v := formatters.FormatTemplateValue(vals[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			values[i] = v
+			kv[k] = v
 		}
 
-		if err := tplRow.Execute(writer, rowMap); err != nil {
+		row := RowData{
+			Columns: keys,
+			Values:  values,
+			Row:     kv,
+		}
+
+		if err := tplRow.Execute(writer, row); err != nil {
 			return rowCount, fmt.Errorf("error executing row template: %w", err)
 		}
 
@@ -163,16 +189,13 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 		return rowCount, err
 	}
 
-	// Footer
 	if tplFooter != nil {
 		if err := tplFooter.Execute(writer, nil); err != nil {
 			return rowCount, fmt.Errorf("error executing footer template: %w", err)
 		}
 	}
 
-	elapsed := time.Since(start)
-	logger.Debug("TEMPLATE streaming export completed: %d rows in %.2fs", rowCount, elapsed.Seconds())
-
+	logger.Debug("TEMPLATE streaming export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
 }
 
@@ -227,9 +250,8 @@ func loadTemplateIfExists(path string, required bool, funcs template.FuncMap) (*
 	if strings.TrimSpace(path) == "" {
 		if required {
 			return nil, fmt.Errorf("template file path is empty")
-		} else {
-			return nil, nil
 		}
+		return nil, nil
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {

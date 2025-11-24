@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"bufio"
 	"fmt"
 	"time"
 
@@ -23,10 +22,7 @@ func (e *yamlExporter) Export(rows pgx.Rows, yamlPath string, options ExportOpti
 	}
 	defer writeCloser.Close()
 
-	w := bufio.NewWriter(writeCloser)
-	defer w.Flush()
-
-	enc := yaml.NewEncoder(w)
+	enc := yaml.NewEncoder(writeCloser)
 	enc.SetIndent(2)
 	defer enc.Close()
 
