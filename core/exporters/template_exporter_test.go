@@ -23,7 +23,7 @@ func TestExportTemplateFull(t *testing.T) {
 			name:  "basic full template export",
 			query: "SELECT 1 as id, 'Alice' as name",
 			template: `Total={{.Count}}
-{{range .Rows}}- {{.id}}:{{.name}}
+{{range .Rows}}- {{.Row.id}}:{{.Row.name}}
 {{end}}`,
 			wantErr: false,
 			checkFunc: func(t *testing.T, out string) {
@@ -107,7 +107,7 @@ func TestExportTemplateStreaming(t *testing.T) {
 
 	// Create templates
 	os.WriteFile(header, []byte(`<table>{{range .Columns}}<th>{{.}}</th>{{end}}`), 0644)
-	os.WriteFile(row, []byte(`<tr><td>{{.id}}</td><td>{{.name}}</td></tr>`), 0644)
+	os.WriteFile(row, []byte(`<tr><td>{{.Row.id}}</td><td>{{.Row.name}}</td></tr>`), 0644)
 	os.WriteFile(footer, []byte(`</table>`), 0644)
 
 	query := "SELECT 1 as id, 'Alice' as name"
@@ -219,7 +219,7 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	tpl := filepath.Join(tmp, "tpl.txt")
 	outPath := filepath.Join(tmp, "out.txt")
 
-	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{.id}}, N={{.name}}{{end}}`), 0644)
+	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{.Row.id}}, N={{.Row.name}}{{end}}`), 0644)
 
 	query := `
 		SELECT 
