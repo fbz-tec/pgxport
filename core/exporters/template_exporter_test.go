@@ -23,7 +23,7 @@ func TestExportTemplateFull(t *testing.T) {
 			name:  "basic full template export",
 			query: "SELECT 1 as id, 'Alice' as name",
 			template: `Total={{.Count}}
-{{range .Rows}}- {{get . "id"}}:{{get . "name"}}
+{{range .Rows}}- {{ index . "id" }}:{{ index . "name" }}
 {{end}}`,
 			wantErr: false,
 			checkFunc: func(t *testing.T, out string) {
@@ -104,8 +104,9 @@ func TestExportTemplateStreaming(t *testing.T) {
 	footer := filepath.Join(tmp, "footer.tpl")
 	outPath := filepath.Join(tmp, "output.html")
 
+	// streaming templates
 	os.WriteFile(header, []byte(`<table>{{range .Columns}}<th>{{.}}</th>{{end}}`), 0644)
-	os.WriteFile(row, []byte(`<tr><td>{{ get . "id" }}</td><td>{{ get . "name" }}</td></tr>`), 0644)
+	os.WriteFile(row, []byte(`<tr><td>{{ index . "id" }}</td><td>{{ index . "name" }}</td></tr>`), 0644)
 	os.WriteFile(footer, []byte(`</table>`), 0644)
 
 	query := "SELECT 1 as id, 'Alice' as name"
@@ -182,7 +183,8 @@ func TestExportTemplateTimeFormatting(t *testing.T) {
 	tpl := filepath.Join(tmp, "tpl.txt")
 	outPath := filepath.Join(tmp, "out.txt")
 
-	os.WriteFile(tpl, []byte(`{{.Rows}}`), 0644)
+	// access value with index syntax
+	os.WriteFile(tpl, []byte(`{{ range .Rows }}{{ index . "created_at" }}{{ end }}`), 0644)
 
 	query := "SELECT NOW() as created_at"
 
@@ -204,8 +206,10 @@ func TestExportTemplateTimeFormatting(t *testing.T) {
 	}
 
 	content, _ := os.ReadFile(outPath)
-	if !strings.Contains(string(content), "-") {
-		t.Error("Expected formatted date")
+	s := string(content)
+
+	if !strings.Contains(s, "-") { // formatted
+		t.Error("Expected formatted date, got: ", s)
 	}
 }
 
@@ -217,7 +221,7 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	tpl := filepath.Join(tmp, "tpl.txt")
 	outPath := filepath.Join(tmp, "out.txt")
 
-	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{get . "id"}}, N={{get . "name"}}{{end}}`), 0644)
+	os.WriteFile(tpl, []byte(`{{range .Rows}}ID={{ index . "id" }}, N={{ index . "name" }}{{end}}`), 0644)
 
 	query := `
 		SELECT 
