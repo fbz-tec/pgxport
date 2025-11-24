@@ -115,6 +115,10 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 		return 0, fmt.Errorf("error ending </%s>: %w", options.XmlRootElement, err)
 	}
 
+	if err := encoder.Flush(); err != nil {
+		return 0, fmt.Errorf("error flushing XML encoder: %w", err)
+	}
+
 	// Add final newline
 	if _, err := writeCloser.Write([]byte("\n")); err != nil {
 		return 0, fmt.Errorf("error writing final newline: %w", err)
