@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="pgXport" />
+  <img src="logo.png" alt="pgXport" width="60%"/>
 </p>
 
 [![CI - Build, Test & Release](https://github.com/fbz-tec/pgxport/actions/workflows/ci.yml/badge.svg)](https://github.com/fbz-tec/pgxport/actions/workflows/ci.yml)
@@ -34,7 +34,7 @@ A simple, powerful and efficient CLI tool to export PostgreSQL query results to 
 
 - 🚀 Execute SQL queries directly from command line
 - 📄 Run SQL queries from files
-- 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** , **Microsoft Excel (XLSX)** and **Template** for other formats
+- 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** , **Microsoft Excel (XLSX)** and **Template** for custom output formats
 - ⚡ High-performance CSV export using PostgreSQL native **COPY** mode (`--with-copy`)
 - 🔧 Customizable CSV delimiter and header
 - 🗜️ Compression: **gzip** / **zip** 
@@ -177,6 +177,10 @@ pgxport [command] [flags]
 | `--with-copy` | - | Use PostgreSQL native COPY for CSV export (faster for large datasets) | `false` | No |
 | `--xml-root-tag` | - | Sets the root element name for XML exports | `results` | No |
 | `--xml-row-tag` | - | Sets the row element name for XML exports | `row` | No |
+| `--tpl-file`         | -      | Path to full template file (non-streaming mode)                 | -        | No |
+| `--tpl-header`       | -      | Header template (streaming mode only)                           | -        | No       |
+| `--tpl-row`          | -      | Row template (streaming mode only) **⚠️ Required in streaming** | -        | Yes (streaming mode)  |
+| `--tpl-footer`       | -      | Footer template (streaming mode only)  | -        | No       |
 | `--fail-on-empty` | `-x` | Exit with error if query returns 0 rows | `false` | No |
 | `--table` | `-t` | Table name for SQL INSERT exports (supports schema.table) | - | For SQL format |
 | `--insert-batch` | - | Number of rows per INSERT statement for SQL exports | `1` | No |
@@ -205,6 +209,7 @@ _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 | YAML | ✅ | ✅ | ❌ |
 | SQL | ✅ | ✅ | ❌ |
 | XLSX | ✅ | ❌ | ❌ |
+| TEMPLATE | ✅ | ✅ | ❌ |
 
 ### Common Flags (All Formats)
 - `--compression` - Enable compression (gzip/zip)
@@ -221,6 +226,7 @@ _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 | **CSV** | `--delimiter`<br>`--no-header`<br>`--with-copy` | Set delimiter character<br>Skip header row<br>Use PostgreSQL COPY mode |
 | **XML** | `--xml-root-tag`<br>`--xml-row-tag` | Customize root element name<br>Customize row element name |
 | **SQL** | `--table`<br>`--insert-batch` | Target table name (required)<br>Rows per INSERT statement |
+| **TEMPLATE** | `--tpl-file`<br>`--tpl-header`<br>`--tpl-row`<br>`--tpl-footer` | Full mode template file<br>Streaming header template<br>Streaming row template (required)<br>Streaming footer template |
 | **JSON** | *(none)* | Uses only common flags |
 | **YAML** | *(none)* | Uses only common flags |
 | **XLSX** | `--no-header` | Skip header row |
@@ -274,6 +280,20 @@ pgxport -s "SELECT * FROM products" -o products.xlsx -f xlsx
 
 # Export XLSX with compression
 pgxport -s "SELECT * FROM large_dataset" -o data.xlsx -f xlsx -z gzip
+
+# Export using custom template (full mode)
+pgxport -s "SELECT * FROM users" -o report.html -f template --tpl-file template.html
+
+# Export using streaming template mode
+pgxport -s "SELECT * FROM logs" -o output.txt -f template \
+        --tpl-header header.tpl --tpl-row row.tpl --tpl-footer footer.tpl
+
+# Generate Markdown documentation from database
+pgxport -s "SELECT table_name, column_name, data_type FROM information_schema.columns" \
+        -o schema.md -f template --tpl-file schema_doc.tpl
+
+# Create custom JSON format with template
+pgxport -s "SELECT * FROM products" -o custom.json -f template --tpl-row jsonl.tpl
 
 # Check version
 pgxport version
@@ -588,6 +608,154 @@ pgxport -s "SELECT * FROM analytics_data" -o analytics.csv -f csv --with-copy
 - 📈 Financial data exports
 - 🎯 Presentations and visual analysis
 
+### TEMPLATE
+
+- **Custom output format** using Go templates
+- **Two modes available**: Full mode (loads all data) or Streaming mode (row-by-row) for large dataset
+- **Rich template functions** for data transformation
+- Default timestamp format: `yyyy-MM-dd HH:mm:ss` (customizable with `--time-format`)
+- Timezone: Local system time (customizable with `--time-zone`)
+- Compatible with compression (gzip/zip)
+
+#### Template Modes
+
+**Full Mode** (`--tpl-file`):
+- Loads all rows into memory
+- Access to complete dataset via `.Rows` array
+- Best for: small to medium datasets, reports requiring totals/aggregations
+- Template has access to: `.Rows`, `.Columns`, `.Count`, `.GeneratedAt`
+
+**Streaming Mode** (`--tpl-row` required, `--tpl-header` and `--tpl-footer` optional):
+- Processes rows one by one
+- Low memory footprint
+- Best for: large datasets, continuous processing
+- Each template processes rows independently
+
+#### Template Data Access
+
+Templates use ordered maps to preserve SQL column order. Use the `get` helper to access values:
+
+```go
+{{get . "column_name"}}
+```
+#### Available Template Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `get` | Access column value from ordered map | `{{get . "id"}}` |
+| `upper` | Convert to uppercase | `{{upper (get . "name")}}` |
+| `lower` | Convert to lowercase | `{{lower (get . "email")}}` |
+| `title` | Convert to title case | `{{title (get . "name")}}` |
+| `trim` | Remove whitespace | `{{trim (get . "text")}}` |
+| `replace` | Replace substring | `{{replace (get . "text") "old" "new"}}` |
+| `join` | Join string array | `{{join .Columns ", "}}` |
+| `split` | Split string | `{{split (get . "tags") ","}}` |
+| `contains` | Check substring | `{{if contains (get . "email") "@"}}...{{end}}` |
+| `hasPrefix` | Check prefix | `{{hasPrefix (get . "code") "US"}}` |
+| `hasSuffix` | Check suffix | `{{hasSuffix (get . "file") ".txt"}}` |
+| `printf` | Format string | `{{printf "ID: %d" (get . "id")}}` |
+| `json` | Convert to JSON | `{{json .}}` |
+| `jsonPretty` | Pretty JSON | `{{jsonPretty .}}` |
+| `formatTime` | Format time | `{{formatTime (get . "created") "yyyy-MM-dd"}}` |
+| `now` | Current time | `{{now}}` |
+| `eq` | Equal comparison | `{{if eq (get . "status") "active"}}...{{end}}` |
+| `ne` | Not equal | `{{if ne (get . "count") 0}}...{{end}}` |
+| `add` | Addition | `{{add 1 2}}` |
+| `sub` | Subtraction | `{{sub 10 3}}` |
+| `mul` | Multiplication | `{{mul 5 4}}` |
+| `div` | Division | `{{div 20 4}}` |
+
+#### Examples
+Template file (`report.html`):
+```html
+User Report
+
+  Total Users: {{.Count}}
+  Generated: {{.GeneratedAt}}
+  
+    {{range .Columns}}{{.}}{{end}}
+    {{range .Rows}}
+    
+      {{get . "id"}}
+      {{get . "name"}}
+      {{get . "email"}}
+    
+    {{end}}
+```
+
+Command:
+```bash
+pgxport -s "SELECT id, name, email FROM users" \
+        -o report.html \
+        -f template \
+        --tpl-file report.html
+```
+
+**Full Mode - Generate Markdown:**
+
+Template file (`users.md`):
+```markdown
+# User Export Report
+
+Generated: {{.GeneratedAt}}
+Total Records: {{.Count}}
+
+## Users
+
+{{range .Rows}}
+### {{get . "name"}}
+- **ID**: {{get . "id"}}
+- **Email**: {{get . "email"}}
+- **Status**: {{upper (get . "status")}}
+{{end}}
+```
+
+Command:
+```bash
+pgxport -s "SELECT * FROM users WHERE active = true" \
+        -o users.md \
+        -f template \
+        --tpl-file users.md
+```
+
+**Streaming Mode - Generate CSV-like format:**
+
+Header template (`header.tpl`):
+
+```go
+{{range i, $col := .Columns}}{{if $i}},{{end}}{{$col}}{{end}}
+```
+Row template (`row.tpl`):
+```go
+{{get . "id"}},{{get . "name"}},{{get . "email"}}
+```
+Command:
+```bash
+pgxport -s "SELECT id, name, email FROM users" \
+        -o output.txt \
+        -f template \
+        --tpl-header header.tpl \
+        --tpl-row row.tpl
+```
+Template sales report sample:
+```go
+Generated: {{.GeneratedAt}}
+{{range .Rows}}
+Order #{{get . "order_id"}} - {{upper (get . "customer_name")}}
+Amount: ${{printf "%.2f" (get . "amount")}}
+Status: {{if eq (get . "status") "paid"}}✓ PAID{{else}}⚠ PENDING{{end}}
+{{end}}
+Total Orders: {{.Count}}
+```
+
+**Use cases:**
+- 📄 Custom report generation (HTML, PDF-ready, Markdown)
+- 📊 Business intelligence exports
+- 🔄 Data transformation for external systems
+- 📋 Configuration file generation
+- 📧 Email template generation
+- 🎯 API response formatting
+- 📝 Documentation generation from database
 
 ### JSON
 
@@ -908,6 +1076,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Individual connection flags
 - Quiet mode
 - XLSX support
+- Template support
 
 
 ### 🚧 Planned
