@@ -1,6 +1,7 @@
 package encoders
 
 import (
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"gopkg.in/yaml.v3"
 )
@@ -18,19 +19,19 @@ func NewOrderedYamlEncoder(timeFormat, timeZone string) OrderedYamlEncoder {
 }
 
 // EncodeRow builds a YAML mapping node (one record).
-func (o OrderedYamlEncoder) EncodeRow(keys []string, dataTypes []uint32, values []interface{}) (*yaml.Node, error) {
+func (o OrderedYamlEncoder) EncodeRow(rowData *orderedmap.OrderedMap[string, DataParams]) (*yaml.Node, error) {
 
 	row := &yaml.Node{
 		Kind: yaml.MappingNode,
 	}
 
-	for i, key := range keys {
+	for k, v := range rowData.AllFromFront() {
 		keyNode := &yaml.Node{
 			Kind:  yaml.ScalarNode,
-			Value: key,
+			Value: k,
 		}
 
-		val := formatters.FormatYAMLValue(values[i], dataTypes[i], o.timeLayout, o.timezone)
+		val := formatters.FormatYAMLValue(v.Value, v.ValueType, o.timeLayout, o.timezone)
 		valueNode := &yaml.Node{}
 		if err := valueNode.Encode(val); err != nil {
 			return nil, err
