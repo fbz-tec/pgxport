@@ -3,7 +3,6 @@ package exporters
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"os"
 	"strings"
 	"text/template"
@@ -53,7 +52,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		keys[i] = string(f.Name)
 	}
 
-	allRows := []map[string]interface{}{}
+	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
 	rowCount := 0
 
 	for rows.Next() {
@@ -63,8 +62,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		}
 
 		rowMap := buildRow(keys, vals, fields, options)
-
-		allRows = append(allRows, maps.Collect(rowMap.AllFromFront()))
+		allRows = append(allRows, rowMap)
 
 		rowCount++
 	}
@@ -150,7 +148,8 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 
 		rowMap := buildRow(keys, vals, fields, options)
 
-		if err := tplRow.Execute(writer, maps.Collect(rowMap.AllFromFront())); err != nil {
+		// Pass orderedmap directly to template for order preservation
+		if err := tplRow.Execute(writer, rowMap); err != nil {
 			return rowCount, fmt.Errorf("error executing row template: %w", err)
 		}
 
@@ -220,6 +219,11 @@ func defaultTemplateFuncs() template.FuncMap {
 			}
 			return a / b
 		},
+		// Helper function to access orderedmap values in templates
+		"get": func(m *orderedmap.OrderedMap[string, interface{}], key string) interface{} {
+			val, _ := m.Get(key)
+			return val
+		},
 	}
 }
 
@@ -241,6 +245,7 @@ func loadTemplateIfExists(path string, required bool, funcs template.FuncMap) (*
 	return tpl, nil
 }
 
+// buildRow creates an ordered map preserving column order from SQL query
 func buildRow(keys []string, vals []interface{}, fields []pgconn.FieldDescription, opts ExportOptions) *orderedmap.OrderedMap[string, interface{}] {
 	row := orderedmap.NewOrderedMap[string, interface{}]()
 	for i, k := range keys {
