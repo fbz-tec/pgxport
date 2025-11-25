@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/encoders"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
@@ -33,12 +34,6 @@ func (e *yamlExporter) Export(rows pgx.Rows, yamlPath string, options ExportOpti
 
 	// Column order
 	fields := rows.FieldDescriptions()
-	keys := make([]string, len(fields))
-	dataTypes := make([]uint32, len(fields))
-	for i, fd := range fields {
-		keys[i] = string(fd.Name)
-		dataTypes[i] = fd.DataTypeOID
-	}
 
 	rowEncoder := encoders.NewOrderedYamlEncoder(options.TimeFormat, options.TimeZone)
 
@@ -50,7 +45,16 @@ func (e *yamlExporter) Export(rows pgx.Rows, yamlPath string, options ExportOpti
 			return rowCount, fmt.Errorf("error reading row %d: %w", rowCount+1, err)
 		}
 
-		rowNode, err := rowEncoder.EncodeRow(keys, dataTypes, values)
+		rowData := orderedmap.NewOrderedMap[string, encoders.DataParams]()
+
+		for i, fd := range fields {
+			rowData.Set(fd.Name, encoders.DataParams{
+				Value:     values[i],
+				ValueType: fd.DataTypeOID,
+			})
+		}
+
+		rowNode, err := rowEncoder.EncodeRow(rowData)
 		if err != nil {
 			return rowCount, fmt.Errorf("error encoding YAML row %d: %w", rowCount+1, err)
 		}

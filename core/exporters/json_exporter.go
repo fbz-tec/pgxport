@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/encoders"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
@@ -22,19 +23,13 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 	}
 	defer writeCloser.Close()
 
-	// Get column names (keys)
-	fields := rows.FieldDescriptions()
-	keys := make([]string, len(fields))
-	dataTypes := make([]uint32, len(fields))
-	for i, fd := range fields {
-		keys[i] = string(fd.Name)
-		dataTypes[i] = fd.DataTypeOID
-	}
-
 	// Write opening bracket
 	if _, err := writeCloser.Write([]byte("[\n")); err != nil {
 		return 0, fmt.Errorf("error writing start of JSON array: %w", err)
 	}
+
+	// Get column descriptions
+	fields := rows.FieldDescriptions()
 
 	// Create ordered JSON encoder
 	orderedEncoder := encoders.NewOrderedJsonEncoder(options.TimeFormat, options.TimeZone)
@@ -55,8 +50,16 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 			}
 		}
 
+		rowData := orderedmap.NewOrderedMap[string, encoders.DataParams]()
+
+		for i, fd := range fields {
+			rowData.Set(fd.Name, encoders.DataParams{
+				Value:     values[i],
+				ValueType: fd.DataTypeOID,
+			})
+		}
 		// Encode with preserved order
-		jsonBytes, err := orderedEncoder.EncodeRow(keys, dataTypes, values)
+		jsonBytes, err := orderedEncoder.EncodeRow(rowData)
 		if err != nil {
 			return rowCount, fmt.Errorf("error encoding JSON for row %d: %w", rowCount, err)
 		}
