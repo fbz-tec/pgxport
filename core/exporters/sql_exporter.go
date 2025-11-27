@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
@@ -19,11 +20,15 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	logger.Debug("Preparing SQL export (table=%s, compression=%s, rows-per-statement=%d)",
 		options.TableName, options.Compression, options.RowPerStatement)
 
-	writeCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
 	if err != nil {
 		return 0, err
 	}
-	defer writeCloser.Close()
+	defer writerCloser.Close()
 
 	fields := rows.FieldDescriptions()
 	columns := make([]string, len(fields))
@@ -56,7 +61,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 		// Write batch when full
 		if len(batchInsertValues) == options.RowPerStatement {
-			if err := e.writeBatchInsert(writeCloser, options.TableName, columns, batchInsertValues); err != nil {
+			if err := e.writeBatchInsert(writerCloser, options.TableName, columns, batchInsertValues); err != nil {
 				return 0, fmt.Errorf("error writing batch statement %d: %w", statementCount+1, err)
 			}
 			statementCount++
@@ -70,7 +75,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	// Write remaining rows as final batch
 	if len(batchInsertValues) > 0 {
-		if err := e.writeBatchInsert(writeCloser, options.TableName, columns, batchInsertValues); err != nil {
+		if err := e.writeBatchInsert(writerCloser, options.TableName, columns, batchInsertValues); err != nil {
 			return 0, fmt.Errorf("error writing final batch statement: %w", err)
 		}
 		statementCount++

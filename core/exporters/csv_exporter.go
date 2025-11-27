@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
@@ -21,7 +22,12 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	logger.Debug("Preparing CSV export (delimiter=%q, noHeader=%v, compression=%s)",
 		string(options.Delimiter), options.NoHeader, options.Compression)
 
-	writerCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}
@@ -127,7 +133,12 @@ func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOpt
 	start := time.Now()
 	logger.Debug("Starting PostgreSQL COPY export (noHeader=%v, compression=%s)", options.NoHeader, options.Compression)
 
-	writerCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/xuri/excelize/v2"
@@ -114,7 +115,12 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		return rowCount, fmt.Errorf("error flushing stream: %w", err)
 	}
 
-	writerCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return rowCount, err
 	}

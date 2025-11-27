@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
@@ -18,18 +19,23 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	start := time.Now()
 	logger.Debug("Preparing XML export (indent=2 spaces, compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}
-	defer writeCloser.Close()
+	defer writerCloser.Close()
 
 	// Encode to XML with indentation
-	encoder := xml.NewEncoder(writeCloser)
+	encoder := xml.NewEncoder(writerCloser)
 	encoder.Indent("", "  ")
 
 	// Write XML header
-	if _, err := writeCloser.Write([]byte(xml.Header)); err != nil {
+	if _, err := writerCloser.Write([]byte(xml.Header)); err != nil {
 		return 0, fmt.Errorf("error writing XML header: %w", err)
 	}
 
@@ -80,7 +86,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 				if err := encoder.EncodeToken(elem); err != nil {
 					return rowCount, fmt.Errorf("error opening <%s>: %w", field, err)
 				}
-				if _, err := writeCloser.Write([]byte(val)); err != nil {
+				if _, err := writerCloser.Write([]byte(val)); err != nil {
 					return rowCount, fmt.Errorf("error writing raw value for <%s>: %w", field, err)
 				}
 				if err := encoder.EncodeToken(xml.EndElement{Name: elem.Name}); err != nil {
@@ -120,7 +126,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	}
 
 	// Add final newline
-	if _, err := writeCloser.Write([]byte("\n")); err != nil {
+	if _, err := writerCloser.Write([]byte("\n")); err != nil {
 		return 0, fmt.Errorf("error writing final newline: %w", err)
 	}
 

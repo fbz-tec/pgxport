@@ -6,6 +6,7 @@ import (
 
 	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/encoders"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
@@ -17,14 +18,19 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	start := time.Now()
 	logger.Debug("Preparing JSON export (indent=2 spaces, compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}
-	defer writeCloser.Close()
+	defer writerCloser.Close()
 
 	// Write opening bracket
-	if _, err := writeCloser.Write([]byte("[\n")); err != nil {
+	if _, err := writerCloser.Write([]byte("[\n")); err != nil {
 		return 0, fmt.Errorf("error writing start of JSON array: %w", err)
 	}
 
@@ -45,7 +51,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 		// Write comma separator for subsequent entries
 		if rowCount > 0 {
-			if _, err := writeCloser.Write([]byte(",\n")); err != nil {
+			if _, err := writerCloser.Write([]byte(",\n")); err != nil {
 				return rowCount, fmt.Errorf("error writing comma for row %d: %w", rowCount, err)
 			}
 		}
@@ -65,10 +71,10 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		}
 
 		// Write with indentation
-		if _, err := writeCloser.Write([]byte("  ")); err != nil {
+		if _, err := writerCloser.Write([]byte("  ")); err != nil {
 			return rowCount, fmt.Errorf("error writing indentation for row %d: %w", rowCount, err)
 		}
-		if _, err := writeCloser.Write(jsonBytes); err != nil {
+		if _, err := writerCloser.Write(jsonBytes); err != nil {
 			return rowCount, fmt.Errorf("error writing JSON object for row %d: %w", rowCount, err)
 		}
 
@@ -84,7 +90,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	}
 
 	// Write closing bracket
-	if _, err := writeCloser.Write([]byte("\n]\n")); err != nil {
+	if _, err := writerCloser.Write([]byte("\n]\n")); err != nil {
 		return rowCount, fmt.Errorf("error writing end of JSON array: %w", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/encoders"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"gopkg.in/yaml.v3"
@@ -17,13 +18,18 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	start := time.Now()
 	logger.Debug("Preparing YAML export (compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(options)
+	writerCloser, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}
-	defer writeCloser.Close()
+	defer writerCloser.Close()
 
-	enc := yaml.NewEncoder(writeCloser)
+	enc := yaml.NewEncoder(writerCloser)
 	enc.SetIndent(2)
 	defer enc.Close()
 

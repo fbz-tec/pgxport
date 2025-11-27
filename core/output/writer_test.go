@@ -1,4 +1,4 @@
-package exporters
+package output
 
 import (
 	"archive/zip"
@@ -15,15 +15,15 @@ func TestCreateOutputWriter_NoCompression(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "none",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 	defer writer.Close()
 
@@ -51,15 +51,15 @@ func TestCreateOutputWriter_GZIP(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "gzip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	// Write test data
@@ -107,15 +107,15 @@ func TestCreateOutputWriter_GZIP_AlreadyHasExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv.gz")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "gzip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	testData := "test data"
@@ -138,15 +138,15 @@ func TestCreateOutputWriter_ZIP(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "zip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	// Write test data
@@ -205,15 +205,15 @@ func TestCreateOutputWriter_ZIP_AlreadyHasExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.zip")
 
-	options := ExportOptions{
-		Format:      FormatJSON,
+	cfg := OutputConfig{
+		Format:      "json",
 		Compression: "zip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	testData := "test data"
@@ -236,15 +236,15 @@ func TestCreateOutputWriter_InvalidCompression(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "invalid",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	_, err := createOutputWriter(options)
+	_, err := CreateWriter(cfg)
 	if err == nil {
-		t.Error("createOutputWriter() expected error for invalid compression, got nil")
+		t.Error("CreateWriter() expected error for invalid compression, got nil")
 	}
 
 	if !strings.Contains(err.Error(), "unsupported compression") {
@@ -273,24 +273,24 @@ func TestCreateOutputWriter_CompressionCaseInsensitive(t *testing.T) {
 			tmpDir := t.TempDir()
 			testPath := filepath.Join(tmpDir, "test.csv")
 
-			options := ExportOptions{
-				Format:      FormatCSV,
+			cfg := OutputConfig{
+				Format:      "csv",
 				Compression: tt.compression,
-				OutputPath:  testPath,
+				Path:        testPath,
 			}
 
-			writer, err := createOutputWriter(options)
+			writer, err := CreateWriter(cfg)
 
 			if tt.shouldWork {
 				if err != nil {
-					t.Errorf("createOutputWriter() unexpected error: %v", err)
+					t.Errorf("CreateWriter() unexpected error: %v", err)
 				} else {
 					writer.Write([]byte("test"))
 					writer.Close()
 				}
 			} else {
 				if err == nil {
-					t.Error("createOutputWriter() expected error, got nil")
+					t.Error("CreateWriter() expected error, got nil")
 					writer.Close()
 				}
 			}
@@ -302,15 +302,15 @@ func TestCreateOutputWriter_CompressionWithWhitespace(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "  gzip  ",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() should handle whitespace, error = %v", err)
+		t.Fatalf("CreateWriter() should handle whitespace, error = %v", err)
 	}
 
 	writer.Write([]byte("test"))
@@ -389,15 +389,15 @@ func TestCreateOutputWriter_MultipleWrites(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "gzip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	// Write in multiple chunks
@@ -441,15 +441,15 @@ func TestCreateOutputWriter_LargeFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "large.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "gzip",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	// Write 10KB of data
@@ -498,15 +498,15 @@ func TestCreateOutputWriter_FilePermissions(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
 
-	options := ExportOptions{
-		Format:      FormatCSV,
+	cfg := OutputConfig{
+		Format:      "csv",
 		Compression: "none",
-		OutputPath:  testPath,
+		Path:        testPath,
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := CreateWriter(cfg)
 	if err != nil {
-		t.Fatalf("createOutputWriter() error = %v", err)
+		t.Fatalf("CreateWriter() error = %v", err)
 	}
 
 	writer.Write([]byte("test"))
@@ -559,12 +559,12 @@ func BenchmarkCreateOutputWriter_NoCompression(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testPath := filepath.Join(tmpDir, "bench.csv")
-		options := ExportOptions{
-			Format:      FormatCSV,
+		cfg := OutputConfig{
+			Format:      "csv",
 			Compression: "none",
-			OutputPath:  testPath,
+			Path:        testPath,
 		}
-		writer, _ := createOutputWriter(options)
+		writer, _ := CreateWriter(cfg)
 		writer.Write([]byte("test,data,row\n"))
 		writer.Close()
 		os.Remove(testPath)
@@ -577,12 +577,12 @@ func BenchmarkCreateOutputWriter_GZIP(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testPath := filepath.Join(tmpDir, "bench.csv")
-		options := ExportOptions{
-			Format:      FormatCSV,
+		cfg := OutputConfig{
+			Format:      "csv",
 			Compression: "gzip",
-			OutputPath:  testPath,
+			Path:        testPath,
 		}
-		writer, _ := createOutputWriter(options)
+		writer, _ := CreateWriter(cfg)
 		writer.Write([]byte("test,data,row\n"))
 		writer.Close()
 		os.Remove(testPath + ".gz")
@@ -595,12 +595,12 @@ func BenchmarkCreateOutputWriter_ZIP(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testPath := filepath.Join(tmpDir, "bench.csv")
-		options := ExportOptions{
-			Format:      FormatCSV,
+		cfg := OutputConfig{
+			Format:      "csv",
 			Compression: "zip",
-			OutputPath:  testPath,
+			Path:        testPath,
 		}
-		writer, _ := createOutputWriter(options)
+		writer, _ := CreateWriter(cfg)
 		writer.Write([]byte("test,data,row\n"))
 		writer.Close()
 		os.Remove(testPath + ".zip")

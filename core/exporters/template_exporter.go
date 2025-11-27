@@ -10,6 +10,7 @@ import (
 
 	"github.com/elliotchance/orderedmap/v3"
 	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -71,7 +72,12 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return rowCount, err
 	}
@@ -113,7 +119,12 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 		return 0, err
 	}
 
-	writer, err := createOutputWriter(options)
+	writer, err := output.CreateWriter(output.OutputConfig{
+		Path:        options.OutputPath,
+		Compression: options.Compression,
+		Format:      options.Format,
+	})
+
 	if err != nil {
 		return 0, err
 	}
