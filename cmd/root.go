@@ -242,9 +242,9 @@ func runExport(cmd *cobra.Command, args []string) error {
 		logger.Debug("CSV delimiter: %q", string(delimRune))
 	}
 
-	store := db.NewStore()
+	store := db.NewPgStore(dbUrl)
 
-	if err := store.Open(dbUrl); err != nil {
+	if err := store.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
@@ -278,13 +278,13 @@ func runExport(cmd *cobra.Command, args []string) error {
 		logger.Debug("Using PostgreSQL COPY mode for fast CSV export")
 
 		if copyExp, ok := exporter.(exporters.CopyCapable); ok {
-			rowCount, err = copyExp.ExportCopy(store.GetConnection(), query, options)
+			rowCount, err = copyExp.ExportCopy(store.Conn(), query, options)
 		} else {
 			return fmt.Errorf("format %s does not support COPY mode", format)
 		}
 	} else {
 		logger.Debug("Using standard export mode for format: %s", format)
-		rows, err = store.ExecuteQuery(context.Background(), query)
+		rows, err = store.Query(context.Background(), query)
 		if err != nil {
 			return err
 		}

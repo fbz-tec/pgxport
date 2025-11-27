@@ -8,7 +8,7 @@ import (
 
 // TestNewStore verifies that NewStore returns a non-nil Store instance
 func TestNewStore(t *testing.T) {
-	store := NewStore()
+	store := NewPgStore("")
 	if store == nil {
 		t.Error("NewStore() returned nil, expected non-nil Store instance")
 	}
@@ -16,7 +16,7 @@ func TestNewStore(t *testing.T) {
 
 // TestStoreInterface verifies that dbStore implements Store interface
 func TestStoreInterface(t *testing.T) {
-	var _ Store = &dbStore{}
+	var _ Store = &PgStore{}
 }
 
 // TestOpenInvalidURL tests connection with invalid database URLs
@@ -45,8 +45,8 @@ func TestOpenInvalidURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := NewStore()
-			err := store.Open(tt.dbURL)
+			store := NewPgStore(tt.dbURL)
+			err := store.Connect()
 			if err == nil {
 				t.Error("Open() with invalid URL should return error, got nil")
 				store.Close()
@@ -65,10 +65,10 @@ func TestOpenClose(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
+	store := NewPgStore(testURL)
 
 	// Test Open
-	err := store.Open(testURL)
+	err := store.Connect()
 	if err != nil {
 		t.Fatalf("Open() failed: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestOpenClose(t *testing.T) {
 
 // TestCloseWithoutOpen tests closing a store that was never opened
 func TestCloseWithoutOpen(t *testing.T) {
-	store := NewStore()
+	store := NewPgStore("")
 	err := store.Close()
 	if err != nil {
 		t.Errorf("Close() without Open() should not error, got: %v", err)
@@ -91,10 +91,10 @@ func TestCloseWithoutOpen(t *testing.T) {
 
 // TestExecuteQueryWithoutConnection tests query execution without connection
 func TestExecuteQueryWithoutConnection(t *testing.T) {
-	store := NewStore()
+	store := NewPgStore("")
 
 	// Should return error, not panic
-	result, err := store.ExecuteQuery(context.Background(), "SELECT 1")
+	result, err := store.Query(context.Background(), "SELECT 1")
 
 	if err == nil {
 		t.Error("ExecuteQuery() without connection should return error")
@@ -114,8 +114,8 @@ func TestExecuteQueryIntegration(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
-	if err := store.Open(testURL); err != nil {
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
 		t.Fatalf("Failed to open connection: %v", err)
 	}
 	defer store.Close()
@@ -162,7 +162,7 @@ func TestExecuteQueryIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := store.ExecuteQuery(context.Background(), tt.query)
+			result, err := store.Query(context.Background(), tt.query)
 
 			if tt.wantErr {
 				if err == nil {
@@ -209,14 +209,14 @@ func TestExecuteQueryEmptyResult(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
-	if err := store.Open(testURL); err != nil {
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
 		t.Fatalf("Failed to open connection: %v", err)
 	}
 	defer store.Close()
 
 	// Query that returns no rows
-	result, err := store.ExecuteQuery(context.Background(), "SELECT 1 as num WHERE 1=0")
+	result, err := store.Query(context.Background(), "SELECT 1 as num WHERE 1=0")
 	if err != nil {
 		t.Fatalf("ExecuteQuery() unexpected error: %v", err)
 	}
@@ -247,8 +247,8 @@ func TestExecuteQueryDataTypes(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
-	if err := store.Open(testURL); err != nil {
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
 		t.Fatalf("Failed to open connection: %v", err)
 	}
 	defer store.Close()
@@ -263,7 +263,7 @@ func TestExecuteQueryDataTypes(t *testing.T) {
 			NOW() as timestamp_col
 	`
 
-	result, err := store.ExecuteQuery(context.Background(), query)
+	result, err := store.Query(context.Background(), query)
 	if err != nil {
 		t.Fatalf("ExecuteQuery() error: %v", err)
 	}
@@ -306,8 +306,8 @@ func TestMultipleQueries(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
-	if err := store.Open(testURL); err != nil {
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
 		t.Fatalf("Failed to open connection: %v", err)
 	}
 	defer store.Close()
@@ -321,7 +321,7 @@ func TestMultipleQueries(t *testing.T) {
 
 	for i, query := range queries {
 		t.Run(query, func(t *testing.T) {
-			result, err := store.ExecuteQuery(context.Background(), query)
+			result, err := store.Query(context.Background(), query)
 			if err != nil {
 				t.Errorf("Query %d failed: %v", i, err)
 				return
@@ -349,15 +349,15 @@ func TestConnectionReuse(t *testing.T) {
 		t.Skip("Skipping integration test: DB_TEST_URL not set")
 	}
 
-	store := NewStore()
-	if err := store.Open(testURL); err != nil {
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
 		t.Fatalf("Failed to open connection: %v", err)
 	}
 	defer store.Close()
 
 	// Execute same query multiple times to verify connection reuse
 	for i := 0; i < 5; i++ {
-		result, err := store.ExecuteQuery(context.Background(), "SELECT 1")
+		result, err := store.Query(context.Background(), "SELECT 1")
 		if err != nil {
 			t.Errorf("Query %d failed: %v", i+1, err)
 		}
