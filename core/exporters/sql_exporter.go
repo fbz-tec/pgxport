@@ -107,7 +107,7 @@ func (e *sqlExporter) writeBatchInsert(writer io.Writer, table string, columns [
 		stmt.WriteString(fmt.Sprintf("\t(%s)%s\n", strings.Join(record, ", "), separator))
 	}
 
-	_, err := writer.Write([]byte(stmt.String()))
+	_, err := io.WriteString(writer, stmt.String())
 	return err
 }
 
