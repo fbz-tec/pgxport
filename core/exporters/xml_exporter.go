@@ -13,12 +13,12 @@ import (
 type xmlExporter struct{}
 
 // writes query results to an XML file with buffered I/O
-func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOptions) (int, error) {
+func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()
 	logger.Debug("Preparing XML export (indent=2 spaces, compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(xmlPath, options, FormatXML)
+	writeCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}

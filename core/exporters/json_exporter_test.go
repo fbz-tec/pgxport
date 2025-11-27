@@ -185,9 +185,10 @@ func TestExportJSON(t *testing.T) {
 				Compression: tt.compression,
 				TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 				TimeZone:    "",
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export() error = %v, wantErr %v", err, tt.wantErr)
@@ -292,9 +293,10 @@ func TestWriteJSONTimeFormatting(t *testing.T) {
 				Compression: "none",
 				TimeFormat:  tt.timeFormat,
 				TimeZone:    tt.timeZone,
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -349,9 +351,10 @@ func TestWriteJSONDataTypes(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -420,9 +423,10 @@ func TestWriteJSONPrettyPrint(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -478,10 +482,11 @@ func TestWriteJSONLargeDataset(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -538,12 +543,6 @@ func BenchmarkExportJSON(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to get json exporter: %v", err)
 	}
-	options := ExportOptions{
-		Format:      FormatJSON,
-		Compression: "none",
-		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
-		TimeZone:    "",
-	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -554,7 +553,15 @@ func BenchmarkExportJSON(b *testing.B) {
 			b.Fatalf("Query failed: %v", err)
 		}
 
-		_, err = exporter.Export(rows, outputPath, options)
+		options := ExportOptions{
+			Format:      FormatJSON,
+			Compression: "none",
+			TimeFormat:  "yyyy-MM-dd HH:mm:ss",
+			TimeZone:    "",
+			OutputPath:  outputPath,
+		}
+
+		_, err = exporter.Export(rows, options)
 		if err != nil {
 			b.Fatalf("writeJSON failed: %v", err)
 		}

@@ -56,9 +56,10 @@ func (c *compositeWriteCloser) Close() error {
 	return c.closeFunc()
 }
 
-func createOutputWriter(path string, options ExportOptions, format string) (io.WriteCloser, error) {
+func createOutputWriter(options ExportOptions) (io.WriteCloser, error) {
 	start := time.Now()
 	compression := strings.ToLower(strings.TrimSpace(options.Compression))
+	path := options.OutputPath
 	switch compression {
 	case None:
 		logger.Debug("Creating uncompressed output file: %s", path)
@@ -103,7 +104,7 @@ func createOutputWriter(path string, options ExportOptions, format string) (io.W
 			return nil, fmt.Errorf("error creating file: %w", err)
 		}
 		zipWriter := zip.NewWriter(file)
-		entryName := determineZipEntryName(path, format)
+		entryName := determineZipEntryName(path, options.Format)
 		logger.Debug("Creating zip entry: %s", entryName)
 		entryWriter, err := zipWriter.Create(entryName)
 		if err != nil {

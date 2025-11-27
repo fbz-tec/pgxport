@@ -21,15 +21,15 @@ import (
 type templateExporter struct{}
 
 // Export chooses streaming or full mode based on ExportOptions.
-func (e *templateExporter) Export(rows pgx.Rows, outputPath string, options ExportOptions) (int, error) {
+func (e *templateExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	if options.TemplateStreaming {
-		return e.exportStreaming(rows, outputPath, options)
+		return e.exportStreaming(rows, options)
 	}
-	return e.exportFull(rows, outputPath, options)
+	return e.exportFull(rows, options)
 }
 
 // full mode (load all rows)
-func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options ExportOptions) (int, error) {
+func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()
 	logger.Debug("Preparing TEMPLATE (full mode) export (compression=%s)", options.Compression)
@@ -71,7 +71,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	writer, err := createOutputWriter(outputPath, options, FormatTemplate)
+	writer, err := createOutputWriter(options)
 	if err != nil {
 		return rowCount, err
 	}
@@ -93,7 +93,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, outputPath string, options 
 }
 
 // Streaming mode
-func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, options ExportOptions) (int, error) {
+func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()
 	logger.Debug("Preparing TEMPLATE (streaming mode) export (compression=%s)", options.Compression)
@@ -113,7 +113,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, outputPath string, opt
 		return 0, err
 	}
 
-	writer, err := createOutputWriter(outputPath, options, FormatTemplate)
+	writer, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}

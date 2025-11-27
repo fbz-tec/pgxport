@@ -194,9 +194,10 @@ func TestExportCSV(t *testing.T) {
 				Compression: tt.compression,
 				TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 				TimeZone:    "",
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export() error = %v, wantErr %v", err, tt.wantErr)
@@ -280,9 +281,10 @@ func TestWriteCSVTimeFormatting(t *testing.T) {
 				Compression: "none",
 				TimeFormat:  tt.timeFormat,
 				TimeZone:    tt.timeZone,
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -332,9 +334,10 @@ func TestWriteCSVDataTypes(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -451,6 +454,7 @@ func TestWriteCopyCSV(t *testing.T) {
 				Format:      FormatCSV,
 				Delimiter:   tt.delimiter,
 				Compression: "none",
+				OutputPath:  outputPath,
 			}
 
 			copyExp, ok := exporter.(CopyCapable)
@@ -459,7 +463,7 @@ func TestWriteCopyCSV(t *testing.T) {
 				t.Fatalf("Copy mode is not supported: %v", err)
 			}
 
-			rowCount, err := copyExp.ExportCopy(conn, tt.query, outputPath, options)
+			rowCount, err := copyExp.ExportCopy(conn, tt.query, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("writeCopyCSV() error = %v, wantErr %v", err, tt.wantErr)
@@ -510,10 +514,11 @@ func TestWriteCSVLargeDataset(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -723,9 +728,10 @@ func TestWriteCSVNoHeader(t *testing.T) {
 				TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 				TimeZone:    "",
 				NoHeader:    tt.noHeader,
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -842,6 +848,7 @@ func TestWriteCopyCSVNoHeader(t *testing.T) {
 				Delimiter:   ',',
 				Compression: "none",
 				NoHeader:    tt.noHeader,
+				OutputPath:  outputPath,
 			}
 
 			copyExp, ok := exporter.(CopyCapable)
@@ -850,7 +857,7 @@ func TestWriteCopyCSVNoHeader(t *testing.T) {
 				t.Fatalf("Copy mode is not supported by this exporter")
 			}
 
-			_, err = copyExp.ExportCopy(conn, tt.query, outputPath, options)
+			_, err = copyExp.ExportCopy(conn, tt.query, options)
 
 			if err != nil {
 				t.Fatalf("writeCopyCSV() error: %v", err)
@@ -879,13 +886,6 @@ func BenchmarkExportCSV(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to get sql exporter: %v", err)
 	}
-	options := ExportOptions{
-		Format:      FormatCSV,
-		Delimiter:   ',',
-		Compression: "none",
-		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
-		TimeZone:    "",
-	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -896,7 +896,16 @@ func BenchmarkExportCSV(b *testing.B) {
 			b.Fatalf("Query failed: %v", err)
 		}
 
-		_, err = exporter.Export(rows, outputPath, options)
+		options := ExportOptions{
+			Format:      FormatCSV,
+			Delimiter:   ',',
+			Compression: "none",
+			TimeFormat:  "yyyy-MM-dd HH:mm:ss",
+			TimeZone:    "",
+			OutputPath:  outputPath,
+		}
+
+		_, err = exporter.Export(rows, options)
 		if err != nil {
 			b.Fatalf("writeCSV failed: %v", err)
 		}

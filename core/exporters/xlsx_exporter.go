@@ -13,7 +13,7 @@ import (
 type xlsxExporter struct{}
 
 // Export writes query results to an Excel XLSX file.
-func (e *xlsxExporter) Export(rows pgx.Rows, xlsxPath string, options ExportOptions) (int, error) {
+func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 
 	logger.Debug("Preparing XLSX export (compression=%s)", options.Compression)
@@ -115,11 +115,11 @@ func (e *xlsxExporter) Export(rows pgx.Rows, xlsxPath string, options ExportOpti
 	}
 
 	if options.Compression == "none" {
-		if err := f.SaveAs(xlsxPath); err != nil {
+		if err := f.SaveAs(options.OutputPath); err != nil {
 			return rowCount, fmt.Errorf("error saving Excel file: %w", err)
 		}
 	} else {
-		writerCloser, err := createOutputWriter(xlsxPath, options, FormatXLSX)
+		writerCloser, err := createOutputWriter(options)
 		if err != nil {
 			return rowCount, err
 		}

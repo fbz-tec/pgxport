@@ -191,9 +191,10 @@ func TestExportXML(t *testing.T) {
 				TimeZone:       "",
 				XmlRootElement: "results",
 				XmlRowElement:  "row",
+				OutputPath:     outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export() error = %v, wantErr %v", err, tt.wantErr)
@@ -278,9 +279,10 @@ func TestWriteXMLTimeFormatting(t *testing.T) {
 				TimeZone:       tt.timeZone,
 				XmlRootElement: "results",
 				XmlRowElement:  "row",
+				OutputPath:     outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("export() error: %v", err)
 			}
@@ -331,9 +333,10 @@ func TestWriteXMLDataTypes(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "results",
 		XmlRowElement:  "row",
+		OutputPath:     outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -384,9 +387,10 @@ func TestWriteXMLStructure(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "results",
 		XmlRowElement:  "row",
+		OutputPath:     outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -443,9 +447,10 @@ func TestWriteXMLValidXML(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "results",
 		XmlRowElement:  "row",
+		OutputPath:     outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -504,9 +509,10 @@ func TestWriteXMLCustomTags(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "data",
 		XmlRowElement:  "record",
+		OutputPath:     outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -565,10 +571,11 @@ func TestWriteXMLLargeDataset(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "results",
 		XmlRowElement:  "row",
+		OutputPath:     outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -636,9 +643,10 @@ func TestWriteXMLSpecialXMLCharacters(t *testing.T) {
 		TimeZone:       "",
 		XmlRootElement: "results",
 		XmlRowElement:  "row",
+		OutputPath:     outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -674,14 +682,6 @@ func BenchmarkExportXML(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to get xml exporter: %v", err)
 	}
-	options := ExportOptions{
-		Format:         FormatXML,
-		Compression:    "none",
-		TimeFormat:     "yyyy-MM-dd HH:mm:ss",
-		TimeZone:       "",
-		XmlRootElement: "results",
-		XmlRowElement:  "row",
-	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -692,7 +692,17 @@ func BenchmarkExportXML(b *testing.B) {
 			b.Fatalf("Query failed: %v", err)
 		}
 
-		_, err = exporter.Export(rows, outputPath, options)
+		options := ExportOptions{
+			Format:         FormatXML,
+			Compression:    "none",
+			TimeFormat:     "yyyy-MM-dd HH:mm:ss",
+			TimeZone:       "",
+			XmlRootElement: "results",
+			XmlRowElement:  "row",
+			OutputPath:     outputPath,
+		}
+
+		_, err = exporter.Export(rows, options)
 		if err != nil {
 			b.Fatalf("writeXML failed: %v", err)
 		}

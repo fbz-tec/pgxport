@@ -13,11 +13,11 @@ import (
 type jsonExporter struct{}
 
 // writes query results to a JSON file with buffered I/O
-func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOptions) (int, error) {
+func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 	logger.Debug("Preparing JSON export (indent=2 spaces, compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(jsonPath, options, FormatJSON)
+	writeCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}

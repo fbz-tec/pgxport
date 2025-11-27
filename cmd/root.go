@@ -42,11 +42,10 @@ var (
 	dbName     string
 	dbPassword string
 	// template file
-	templateFile      string
-	templateHeader    string
-	templateRow       string
-	templateFooter    string
-	templateStreaming bool
+	templateFile   string
+	templateHeader string
+	templateRow    string
+	templateFooter string
 )
 
 var rootCmd = &cobra.Command{
@@ -251,15 +250,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	defer store.Close()
 
-	if templateFile != "" {
-		templateStreaming = false
-	} else {
-		templateStreaming = true
-	}
-
 	options := exporters.ExportOptions{
 		Format:            format,
 		Delimiter:         delimRune,
+		OutputPath:        outputPath,
 		TableName:         tableName,
 		Compression:       compression,
 		TimeFormat:        timeFormat,
@@ -272,7 +266,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		TemplateHeader:    templateHeader,
 		TemplateRow:       templateRow,
 		TemplateFooter:    templateFooter,
-		TemplateStreaming: templateStreaming,
+		TemplateStreaming: templateFile == "",
 	}
 
 	exporter, err = exporters.Get(format)
@@ -284,7 +278,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		logger.Debug("Using PostgreSQL COPY mode for fast CSV export")
 
 		if copyExp, ok := exporter.(exporters.CopyCapable); ok {
-			rowCount, err = copyExp.ExportCopy(store.GetConnection(), query, outputPath, options)
+			rowCount, err = copyExp.ExportCopy(store.GetConnection(), query, options)
 		} else {
 			return fmt.Errorf("format %s does not support COPY mode", format)
 		}
@@ -296,7 +290,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 		defer rows.Close()
 
-		rowCount, err = exporter.Export(rows, outputPath, options)
+		rowCount, err = exporter.Export(rows, options)
 	}
 
 	if err != nil {

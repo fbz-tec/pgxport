@@ -15,13 +15,13 @@ import (
 type csvExporter struct{}
 
 // Export writes query results to a CSV file with buffered I/O.
-func (e *csvExporter) Export(rows pgx.Rows, csvPath string, options ExportOptions) (int, error) {
+func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 
 	logger.Debug("Preparing CSV export (delimiter=%q, noHeader=%v, compression=%s)",
 		string(options.Delimiter), options.NoHeader, options.Compression)
 
-	writerCloser, err := createOutputWriter(csvPath, options, FormatCSV)
+	writerCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}
@@ -122,12 +122,12 @@ func (e *csvExporter) Export(rows pgx.Rows, csvPath string, options ExportOption
 	return rowCount, nil
 }
 
-func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, csvPath string, options ExportOptions) (int, error) {
+func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOptions) (int, error) {
 
 	start := time.Now()
 	logger.Debug("Starting PostgreSQL COPY export (noHeader=%v, compression=%s)", options.NoHeader, options.Compression)
 
-	writerCloser, err := createOutputWriter(csvPath, options, FormatCSV)
+	writerCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}

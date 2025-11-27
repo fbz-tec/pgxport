@@ -13,13 +13,13 @@ import (
 
 type sqlExporter struct{}
 
-func (e *sqlExporter) Export(rows pgx.Rows, sqlPath string, options ExportOptions) (int, error) {
+func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()
 	logger.Debug("Preparing SQL export (table=%s, compression=%s, rows-per-statement=%d)",
 		options.TableName, options.Compression, options.RowPerStatement)
 
-	writeCloser, err := createOutputWriter(sqlPath, options, FormatSQL)
+	writeCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}

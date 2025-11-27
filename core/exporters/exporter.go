@@ -18,6 +18,7 @@ const (
 type ExportOptions struct {
 	Format          string
 	Delimiter       rune
+	OutputPath      string
 	TableName       string
 	Compression     string
 	TimeFormat      string
@@ -36,10 +37,10 @@ type ExportOptions struct {
 
 // Exporter interface defines export operations
 type Exporter interface {
-	Export(rows pgx.Rows, outputPath string, options ExportOptions) (int, error)
+	Export(rows pgx.Rows, options ExportOptions) (int, error)
 }
 
 // Optional capability interface for exporters that can use PostgreSQL COPY
 type CopyCapable interface {
-	ExportCopy(conn *pgx.Conn, query string, outputPath string, options ExportOptions) (int, error)
+	ExportCopy(conn *pgx.Conn, query string, options ExportOptions) (int, error)
 }

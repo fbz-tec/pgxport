@@ -192,9 +192,10 @@ func TestExportXLSX(t *testing.T) {
 				TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 				TimeZone:    "",
 				NoHeader:    tt.noHeader,
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export() error = %v, wantErr %v", err, tt.wantErr)
@@ -292,9 +293,10 @@ func TestWriteXLSXTimeFormatting(t *testing.T) {
 				Compression: "none",
 				TimeFormat:  tt.timeFormat,
 				TimeZone:    tt.timeZone,
+				OutputPath:  outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -339,9 +341,10 @@ func TestWriteXLSXDataTypes(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -403,10 +406,11 @@ func TestWriteXLSXLargeDataset(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -473,9 +477,10 @@ func TestWriteXLSXColumnOrder(t *testing.T) {
 		Compression: "none",
 		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
 		TimeZone:    "",
+		OutputPath:  outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -540,13 +545,6 @@ func BenchmarkExportXLSX(b *testing.B) {
 		b.Fatalf("Failed to get xlsx exporter: %v", err)
 	}
 
-	options := ExportOptions{
-		Format:      FormatXLSX,
-		Compression: "none",
-		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
-		TimeZone:    "",
-	}
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		outputPath := filepath.Join(tmpDir, "bench.xlsx")
@@ -556,7 +554,15 @@ func BenchmarkExportXLSX(b *testing.B) {
 			b.Fatalf("Query failed: %v", err)
 		}
 
-		_, err = exporter.Export(rows, outputPath, options)
+		options := ExportOptions{
+			Format:      FormatXLSX,
+			Compression: "none",
+			TimeFormat:  "yyyy-MM-dd HH:mm:ss",
+			TimeZone:    "",
+			OutputPath:  outputPath,
+		}
+
+		_, err = exporter.Export(rows, options)
 		if err != nil {
 			b.Fatalf("Export failed: %v", err)
 		}

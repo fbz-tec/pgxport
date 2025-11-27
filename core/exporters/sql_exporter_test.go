@@ -227,9 +227,10 @@ func TestExportSQL(t *testing.T) {
 				TableName:       tt.tableName,
 				Compression:     tt.compression,
 				RowPerStatement: 1,
+				OutputPath:      outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export() error = %v, wantErr %v", err, tt.wantErr)
@@ -282,9 +283,10 @@ func TestWriteSQLDataTypes(t *testing.T) {
 		TableName:       "test_types",
 		Compression:     "none",
 		RowPerStatement: 1,
+		OutputPath:      outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -373,9 +375,10 @@ func TestWriteSQLColumnOrder(t *testing.T) {
 		TableName:       "test_table",
 		Compression:     "none",
 		RowPerStatement: 1,
+		OutputPath:      outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -460,9 +463,10 @@ func TestWriteSQLEscaping(t *testing.T) {
 				TableName:       "test_escape",
 				Compression:     "none",
 				RowPerStatement: 1,
+				OutputPath:      outputPath,
 			}
 
-			_, err = exporter.Export(rows, outputPath, options)
+			_, err = exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -515,10 +519,11 @@ func TestWriteSQLLargeDataset(t *testing.T) {
 		TableName:       "large_table",
 		Compression:     "none",
 		RowPerStatement: 1,
+		OutputPath:      outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -577,9 +582,10 @@ func TestWriteSQLStatementFormat(t *testing.T) {
 		TableName:       "test_table",
 		Compression:     "none",
 		RowPerStatement: 1,
+		OutputPath:      outputPath,
 	}
 
-	_, err = exporter.Export(rows, outputPath, options)
+	_, err = exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -649,9 +655,10 @@ func TestWriteSQLBuffering(t *testing.T) {
 		TableName:       "buffer_test",
 		Compression:     "none",
 		RowPerStatement: 1,
+		OutputPath:      outputPath,
 	}
 
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
@@ -881,9 +888,10 @@ func TestWriteSQLWithBatchInsert(t *testing.T) {
 				TableName:       tt.tableName,
 				Compression:     "none",
 				RowPerStatement: tt.insertBatch,
+				OutputPath:      outputPath,
 			}
 
-			rowCount, err := exporter.Export(rows, outputPath, options)
+			rowCount, err := exporter.Export(rows, options)
 			if err != nil {
 				t.Fatalf("Export() error: %v", err)
 			}
@@ -942,10 +950,11 @@ func TestWriteSQLBatchInsertLargeDataset(t *testing.T) {
 		TableName:       "large_batch_table",
 		Compression:     "none",
 		RowPerStatement: 100,
+		OutputPath:      outputPath,
 	}
 
 	start := time.Now()
-	rowCount, err := exporter.Export(rows, outputPath, options)
+	rowCount, err := exporter.Export(rows, options)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -1035,9 +1044,10 @@ func BenchmarkWriteSQLBatchComparison(b *testing.B) {
 					TableName:       "bench_table",
 					Compression:     "none",
 					RowPerStatement: bm.batchSize,
+					OutputPath:      outputPath,
 				}
 
-				_, err = exporter.Export(rows, outputPath, options)
+				_, err = exporter.Export(rows, options)
 				if err != nil {
 					b.Fatalf("writeSQL failed: %v", err)
 				}
@@ -1066,12 +1076,6 @@ func BenchmarkExportSQL(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to get sql exporter: %v", err)
 	}
-	options := ExportOptions{
-		Format:          FormatSQL,
-		TableName:       "bench_table",
-		Compression:     "none",
-		RowPerStatement: 1,
-	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1082,7 +1086,15 @@ func BenchmarkExportSQL(b *testing.B) {
 			b.Fatalf("Query failed: %v", err)
 		}
 
-		_, err = exporter.Export(rows, outputPath, options)
+		options := ExportOptions{
+			Format:          FormatSQL,
+			TableName:       "bench_table",
+			Compression:     "none",
+			RowPerStatement: 1,
+			OutputPath:      outputPath,
+		}
+
+		_, err = exporter.Export(rows, options)
 		if err != nil {
 			b.Fatalf("writeSQL failed: %v", err)
 		}

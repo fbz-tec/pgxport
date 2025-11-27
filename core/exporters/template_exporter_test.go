@@ -100,9 +100,10 @@ func TestExportTemplateFull(t *testing.T) {
 				TemplateFile:      tplPath,
 				TemplateStreaming: false,
 				Compression:       "none",
+				OutputPath:        outPath,
 			}
 
-			_, err = exporter.Export(rows, outPath, opts)
+			_, err = exporter.Export(rows, opts)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Export err=%v, wantErr=%v", err, tt.wantErr)
@@ -147,9 +148,10 @@ func TestExportTemplateStreaming(t *testing.T) {
 		TemplateFooter:    footer,
 		TemplateStreaming: true,
 		Compression:       "none",
+		OutputPath:        outPath,
 	}
 
-	_, err = exporter.Export(rows, outPath, opts)
+	_, err = exporter.Export(rows, opts)
 	if err != nil {
 		t.Fatalf("Streaming export err: %v", err)
 	}
@@ -188,9 +190,11 @@ func TestTemplateStreamingMissingRow(t *testing.T) {
 		TemplateHeader:    header,
 		TemplateStreaming: true,
 		TemplateRow:       "", // missing → should error
+		Compression:       "none",
+		OutputPath:        outPath,
 	}
 
-	_, err := exporter.Export(rows, outPath, opts)
+	_, err := exporter.Export(rows, opts)
 	if err == nil {
 		t.Fatal("Expected error when TemplateRow missing")
 	}
@@ -219,9 +223,10 @@ func TestExportTemplateTimeFormatting(t *testing.T) {
 		TemplateFile: tpl,
 		TimeFormat:   "yyyy-MM-dd HH:mm",
 		Compression:  "none",
+		OutputPath:   outPath,
 	}
 
-	_, err := exporter.Export(rows, outPath, opts)
+	_, err := exporter.Export(rows, opts)
 	if err != nil {
 		t.Fatalf("Template time export err: %v", err)
 	}
@@ -259,9 +264,10 @@ func TestExportTemplateDataTypes(t *testing.T) {
 		Format:       FormatTemplate,
 		TemplateFile: tpl,
 		Compression:  "none",
+		OutputPath:   outPath,
 	}
 
-	_, err := exporter.Export(rows, outPath, opts)
+	_, err := exporter.Export(rows, opts)
 	if err != nil {
 		t.Fatalf("Template data export err: %v", err)
 	}
@@ -305,9 +311,10 @@ Title: {{title (get . "name")}}
 		Format:       FormatTemplate,
 		TemplateFile: tpl,
 		Compression:  "none",
+		OutputPath:   outPath,
 	}
 
-	_, err := exporter.Export(rows, outPath, opts)
+	_, err := exporter.Export(rows, opts)
 	if err != nil {
 		t.Fatalf("Template helpers test err: %v", err)
 	}

@@ -13,11 +13,11 @@ import (
 
 type yamlExporter struct{}
 
-func (e *yamlExporter) Export(rows pgx.Rows, yamlPath string, options ExportOptions) (int, error) {
+func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 	logger.Debug("Preparing YAML export (compression=%s)", options.Compression)
 
-	writeCloser, err := createOutputWriter(yamlPath, options, FormatYAML)
+	writeCloser, err := createOutputWriter(options)
 	if err != nil {
 		return 0, err
 	}
