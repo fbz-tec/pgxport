@@ -114,20 +114,14 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		return rowCount, fmt.Errorf("error flushing stream: %w", err)
 	}
 
-	if options.Compression == "none" {
-		if err := f.SaveAs(options.OutputPath); err != nil {
-			return rowCount, fmt.Errorf("error saving Excel file: %w", err)
-		}
-	} else {
-		writerCloser, err := createOutputWriter(options)
-		if err != nil {
-			return rowCount, err
-		}
-		defer writerCloser.Close()
+	writerCloser, err := createOutputWriter(options)
+	if err != nil {
+		return rowCount, err
+	}
+	defer writerCloser.Close()
 
-		if err := f.Write(writerCloser); err != nil {
-			return rowCount, fmt.Errorf("error writing compressed Excel file: %w", err)
-		}
+	if err := f.Write(writerCloser); err != nil {
+		return rowCount, fmt.Errorf("error writing Excel file: %w", err)
 	}
 
 	elapsed := time.Since(start)
