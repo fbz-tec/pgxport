@@ -184,7 +184,7 @@ func TestExportCSV(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatCSV)
+			exporter, err := Get(FormatCSV)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -270,7 +270,7 @@ func TestWriteCSVTimeFormatting(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatCSV)
+			exporter, err := Get(FormatCSV)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -322,7 +322,7 @@ func TestWriteCSVDataTypes(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatCSV)
+	exporter, err := Get(FormatCSV)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -442,7 +442,7 @@ func TestWriteCopyCSV(t *testing.T) {
 			tmpDir := t.TempDir()
 			outputPath := filepath.Join(tmpDir, "output.csv")
 
-			exporter, err := GetExporter(FormatCSV)
+			exporter, err := Get(FormatCSV)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -500,7 +500,7 @@ func TestWriteCSVLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatCSV)
+	exporter, err := Get(FormatCSV)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -712,7 +712,7 @@ func TestWriteCSVNoHeader(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatCSV)
+			exporter, err := Get(FormatCSV)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -832,7 +832,7 @@ func TestWriteCopyCSVNoHeader(t *testing.T) {
 			tmpDir := t.TempDir()
 			outputPath := filepath.Join(tmpDir, "output.csv")
 
-			exporter, err := GetExporter(FormatCSV)
+			exporter, err := Get(FormatCSV)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -875,7 +875,7 @@ func BenchmarkExportCSV(b *testing.B) {
 	defer conn.Close(ctx)
 
 	tmpDir := b.TempDir()
-	exporter, err := GetExporter(FormatCSV)
+	exporter, err := Get(FormatCSV)
 	if err != nil {
 		b.Fatalf("Failed to get sql exporter: %v", err)
 	}

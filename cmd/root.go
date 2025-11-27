@@ -275,7 +275,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		TemplateStreaming: templateStreaming,
 	}
 
-	exporter, err = exporters.GetExporter(format)
+	exporter, err = exporters.Get(format)
 	if err != nil {
 		return err
 	}
@@ -322,7 +322,7 @@ func validateExportParams() error {
 
 	// Normalize and validate format
 	format = strings.ToLower(strings.TrimSpace(format))
-	validFormats := exporters.ListExporters()
+	validFormats := exporters.List()
 
 	isValid := false
 	for _, f := range validFormats {

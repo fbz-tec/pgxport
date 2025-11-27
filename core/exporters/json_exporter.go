@@ -94,5 +94,5 @@ func (e *jsonExporter) Export(rows pgx.Rows, jsonPath string, options ExportOpti
 }
 
 func init() {
-	MustRegisterExporter(FormatJSON, func() Exporter { return &jsonExporter{} })
+	MustRegister(FormatJSON, func() Exporter { return &jsonExporter{} })
 }

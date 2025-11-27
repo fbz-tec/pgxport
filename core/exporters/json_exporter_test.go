@@ -176,7 +176,7 @@ func TestExportJSON(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatJSON)
+			exporter, err := Get(FormatJSON)
 			if err != nil {
 				t.Fatalf("Failed to get json exporter: %v", err)
 			}
@@ -283,7 +283,7 @@ func TestWriteJSONTimeFormatting(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatJSON)
+			exporter, err := Get(FormatJSON)
 			if err != nil {
 				t.Fatalf("Failed to get json exporter: %v", err)
 			}
@@ -340,7 +340,7 @@ func TestWriteJSONDataTypes(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatJSON)
+	exporter, err := Get(FormatJSON)
 	if err != nil {
 		t.Fatalf("Failed to get json exporter: %v", err)
 	}
@@ -411,7 +411,7 @@ func TestWriteJSONPrettyPrint(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatJSON)
+	exporter, err := Get(FormatJSON)
 	if err != nil {
 		t.Fatalf("Failed to get json exporter: %v", err)
 	}
@@ -469,7 +469,7 @@ func TestWriteJSONLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatJSON)
+	exporter, err := Get(FormatJSON)
 	if err != nil {
 		t.Fatalf("Failed to get json exporter: %v", err)
 	}
@@ -534,7 +534,7 @@ func BenchmarkExportJSON(b *testing.B) {
 	defer conn.Close(ctx)
 
 	tmpDir := b.TempDir()
-	exporter, err := GetExporter(FormatJSON)
+	exporter, err := Get(FormatJSON)
 	if err != nil {
 		b.Fatalf("Failed to get json exporter: %v", err)
 	}

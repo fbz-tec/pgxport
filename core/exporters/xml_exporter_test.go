@@ -180,7 +180,7 @@ func TestExportXML(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatXML)
+			exporter, err := Get(FormatXML)
 			if err != nil {
 				t.Fatalf("Failed to get xml exporter: %v", err)
 			}
@@ -267,7 +267,7 @@ func TestWriteXMLTimeFormatting(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatXML)
+			exporter, err := Get(FormatXML)
 			if err != nil {
 				t.Fatalf("Failed to get xml exporter: %v", err)
 			}
@@ -320,7 +320,7 @@ func TestWriteXMLDataTypes(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestWriteXMLStructure(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -432,7 +432,7 @@ func TestWriteXMLValidXML(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -493,7 +493,7 @@ func TestWriteXMLCustomTags(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -554,7 +554,7 @@ func TestWriteXMLLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -625,7 +625,7 @@ func TestWriteXMLSpecialXMLCharacters(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		t.Fatalf("Failed to get xml exporter: %v", err)
 	}
@@ -670,7 +670,7 @@ func BenchmarkExportXML(b *testing.B) {
 	defer conn.Close(ctx)
 
 	tmpDir := b.TempDir()
-	exporter, err := GetExporter(FormatXML)
+	exporter, err := Get(FormatXML)
 	if err != nil {
 		b.Fatalf("Failed to get xml exporter: %v", err)
 	}

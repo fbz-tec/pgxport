@@ -93,7 +93,7 @@ func TestExportTemplateFull(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, _ := GetExporter(FormatTemplate)
+			exporter, _ := Get(FormatTemplate)
 
 			opts := ExportOptions{
 				Format:            FormatTemplate,
@@ -138,7 +138,7 @@ func TestExportTemplateStreaming(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, _ := GetExporter(FormatTemplate)
+	exporter, _ := Get(FormatTemplate)
 
 	opts := ExportOptions{
 		Format:            FormatTemplate,
@@ -181,7 +181,7 @@ func TestTemplateStreamingMissingRow(t *testing.T) {
 	rows, _ := conn.Query(context.Background(), "SELECT 1")
 	defer rows.Close()
 
-	exporter, _ := GetExporter(FormatTemplate)
+	exporter, _ := Get(FormatTemplate)
 
 	opts := ExportOptions{
 		Format:            FormatTemplate,
@@ -212,7 +212,7 @@ func TestExportTemplateTimeFormatting(t *testing.T) {
 	rows, _ := conn.Query(context.Background(), query)
 	defer rows.Close()
 
-	exporter, _ := GetExporter(FormatTemplate)
+	exporter, _ := Get(FormatTemplate)
 
 	opts := ExportOptions{
 		Format:       FormatTemplate,
@@ -253,7 +253,7 @@ func TestExportTemplateDataTypes(t *testing.T) {
 	rows, _ := conn.Query(context.Background(), query)
 	defer rows.Close()
 
-	exporter, _ := GetExporter(FormatTemplate)
+	exporter, _ := Get(FormatTemplate)
 
 	opts := ExportOptions{
 		Format:       FormatTemplate,
@@ -299,7 +299,7 @@ Title: {{title (get . "name")}}
 	rows, _ := conn.Query(context.Background(), query)
 	defer rows.Close()
 
-	exporter, _ := GetExporter(FormatTemplate)
+	exporter, _ := Get(FormatTemplate)
 
 	opts := ExportOptions{
 		Format:       FormatTemplate,

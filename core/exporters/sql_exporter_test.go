@@ -218,7 +218,7 @@ func TestExportSQL(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatSQL)
+			exporter, err := Get(FormatSQL)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -273,7 +273,7 @@ func TestWriteSQLDataTypes(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestWriteSQLColumnOrder(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -451,7 +451,7 @@ func TestWriteSQLEscaping(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatSQL)
+			exporter, err := Get(FormatSQL)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -506,7 +506,7 @@ func TestWriteSQLLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestWriteSQLStatementFormat(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -640,7 +640,7 @@ func TestWriteSQLBuffering(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -872,7 +872,7 @@ func TestWriteSQLWithBatchInsert(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatSQL)
+			exporter, err := Get(FormatSQL)
 			if err != nil {
 				t.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -933,7 +933,7 @@ func TestWriteSQLBatchInsertLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		t.Fatalf("Failed to get sql exporter: %v", err)
 	}
@@ -1015,7 +1015,7 @@ func BenchmarkWriteSQLBatchComparison(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			tmpDir := b.TempDir()
-			exporter, err := GetExporter(FormatSQL)
+			exporter, err := Get(FormatSQL)
 			if err != nil {
 				b.Fatalf("Failed to get sql exporter: %v", err)
 			}
@@ -1062,7 +1062,7 @@ func BenchmarkExportSQL(b *testing.B) {
 	defer conn.Close(ctx)
 
 	tmpDir := b.TempDir()
-	exporter, err := GetExporter(FormatSQL)
+	exporter, err := Get(FormatSQL)
 	if err != nil {
 		b.Fatalf("Failed to get sql exporter: %v", err)
 	}

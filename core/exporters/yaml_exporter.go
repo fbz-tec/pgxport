@@ -84,5 +84,5 @@ func (e *yamlExporter) Export(rows pgx.Rows, yamlPath string, options ExportOpti
 }
 
 func init() {
-	MustRegisterExporter(FormatYAML, func() Exporter { return &yamlExporter{} })
+	MustRegister(FormatYAML, func() Exporter { return &yamlExporter{} })
 }

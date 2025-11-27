@@ -149,5 +149,5 @@ func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, csvPath string, o
 }
 
 func init() {
-	MustRegisterExporter(FormatCSV, func() Exporter { return &csvExporter{} })
+	MustRegister(FormatCSV, func() Exporter { return &csvExporter{} })
 }

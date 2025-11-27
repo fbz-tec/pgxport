@@ -181,7 +181,7 @@ func TestExportXLSX(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatXLSX)
+			exporter, err := Get(FormatXLSX)
 			if err != nil {
 				t.Fatalf("Failed to get xlsx exporter: %v", err)
 			}
@@ -282,7 +282,7 @@ func TestWriteXLSXTimeFormatting(t *testing.T) {
 			}
 			defer rows.Close()
 
-			exporter, err := GetExporter(FormatXLSX)
+			exporter, err := Get(FormatXLSX)
 			if err != nil {
 				t.Fatalf("Failed to get xlsx exporter: %v", err)
 			}
@@ -329,7 +329,7 @@ func TestWriteXLSXDataTypes(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXLSX)
+	exporter, err := Get(FormatXLSX)
 	if err != nil {
 		t.Fatalf("Failed to get xlsx exporter: %v", err)
 	}
@@ -393,7 +393,7 @@ func TestWriteXLSXLargeDataset(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXLSX)
+	exporter, err := Get(FormatXLSX)
 	if err != nil {
 		t.Fatalf("Failed to get xlsx exporter: %v", err)
 	}
@@ -463,7 +463,7 @@ func TestWriteXLSXColumnOrder(t *testing.T) {
 	}
 	defer rows.Close()
 
-	exporter, err := GetExporter(FormatXLSX)
+	exporter, err := Get(FormatXLSX)
 	if err != nil {
 		t.Fatalf("Failed to get xlsx exporter: %v", err)
 	}
@@ -535,7 +535,7 @@ func BenchmarkExportXLSX(b *testing.B) {
 	defer conn.Close(ctx)
 
 	tmpDir := b.TempDir()
-	exporter, err := GetExporter(FormatXLSX)
+	exporter, err := Get(FormatXLSX)
 	if err != nil {
 		b.Fatalf("Failed to get xlsx exporter: %v", err)
 	}

@@ -256,7 +256,7 @@ func buildRow(keys []string, vals []interface{}, fields []pgconn.FieldDescriptio
 }
 
 func init() {
-	MustRegisterExporter(FormatTemplate, func() Exporter {
+	MustRegister(FormatTemplate, func() Exporter {
 		return &templateExporter{}
 	})
 }

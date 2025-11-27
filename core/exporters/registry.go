@@ -6,39 +6,39 @@ import (
 	"strings"
 )
 
-type ExporterFactory func() Exporter
+type Factory func() Exporter
 
-var exportersRegistry = map[string]ExporterFactory{}
+var registry = map[string]Factory{}
 
-func RegisterExporter(format string, factory ExporterFactory) error {
+func Register(format string, factory Factory) error {
 	format = strings.ToLower(strings.TrimSpace(format))
-	if _, exists := exportersRegistry[format]; exists {
+	if _, exists := registry[format]; exists {
 		return fmt.Errorf("exporter: format %q already registered", format)
 	}
-	exportersRegistry[format] = factory
+	registry[format] = factory
 	return nil
 }
 
-func GetExporter(format string) (Exporter, error) {
-	factory, ok := exportersRegistry[format]
+func Get(format string) (Exporter, error) {
+	factory, ok := registry[format]
 	if !ok {
 		return nil, fmt.Errorf("unsupported format: %q (available: %s)",
-			format, strings.Join(ListExporters(), ", "))
+			format, strings.Join(List(), ", "))
 	}
 	return factory(), nil
 }
 
-func ListExporters() []string {
-	formats := make([]string, 0, len(exportersRegistry))
-	for name := range exportersRegistry {
+func List() []string {
+	formats := make([]string, 0, len(registry))
+	for name := range registry {
 		formats = append(formats, name)
 	}
 	sort.Strings(formats)
 	return formats
 }
 
-func MustRegisterExporter(format string, factory ExporterFactory) {
-	if err := RegisterExporter(format, factory); err != nil {
+func MustRegister(format string, factory Factory) {
+	if err := Register(format, factory); err != nil {
 		panic(err)
 	}
 }

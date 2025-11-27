@@ -112,5 +112,5 @@ func (e *sqlExporter) writeBatchInsert(writer io.Writer, table string, columns [
 }
 
 func init() {
-	MustRegisterExporter(FormatSQL, func() Exporter { return &sqlExporter{} })
+	MustRegister(FormatSQL, func() Exporter { return &sqlExporter{} })
 }

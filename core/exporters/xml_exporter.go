@@ -130,5 +130,5 @@ func (e *xmlExporter) Export(rows pgx.Rows, xmlPath string, options ExportOption
 }
 
 func init() {
-	MustRegisterExporter(FormatXML, func() Exporter { return &xmlExporter{} })
+	MustRegister(FormatXML, func() Exporter { return &xmlExporter{} })
 }

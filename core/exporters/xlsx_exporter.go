@@ -138,7 +138,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, xlsxPath string, options ExportOpti
 }
 
 func init() {
-	MustRegisterExporter(FormatXLSX, func() Exporter {
+	MustRegister(FormatXLSX, func() Exporter {
 		return &xlsxExporter{}
 	})
 }
