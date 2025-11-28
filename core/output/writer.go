@@ -11,6 +11,7 @@ const (
 	GZIP = "gzip"
 	ZIP  = "zip"
 	ZSTD = "zstd"
+	LZ4  = "lz4"
 )
 
 type OutputConfig struct {
@@ -29,6 +30,8 @@ func CreateWriter(cfg OutputConfig) (io.WriteCloser, error) {
 		return newZipWriter(cfg.Path, cfg.Format)
 	case ZSTD:
 		return newZstdWriter(cfg.Path)
+	case LZ4:
+		return newLz4Writer(cfg.Path)
 	default:
 		return nil, fmt.Errorf("unsupported compression type %q", cfg.Compression)
 	}

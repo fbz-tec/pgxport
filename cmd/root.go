@@ -103,7 +103,7 @@ func init() {
 	// OUTPUT DESTINATION - where and how to export
 	rootCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (required)")
 	rootCmd.Flags().StringVarP(&format, "format", "f", "csv", "Output format (csv, json, xml, sql)")
-	rootCmd.Flags().StringVarP(&compression, "compression", "z", "none", "Compression to apply to the output file (none, gzip, zip, zstd)")
+	rootCmd.Flags().StringVarP(&compression, "compression", "z", "none", "Compression to apply to the output file (none, gzip, zip, zstd, lz4)")
 
 	// CSV options
 	rootCmd.Flags().StringVarP(&delimiter, "delimiter", "D", ",", "CSV delimiter character")
@@ -335,7 +335,7 @@ func validateExportParams() error {
 	if compression == "" {
 		compression = "none"
 	}
-	validCompressions := []string{"none", "gzip", "zip", "zstd"}
+	validCompressions := []string{"none", "gzip", "zip", "zstd", "lz4"}
 	compressionValid := false
 	for _, c := range validCompressions {
 		if compression == c {
