@@ -37,7 +37,7 @@ A simple, powerful and efficient CLI tool to export PostgreSQL query results to 
 - 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** , **Microsoft Excel (XLSX)** and **Template** for custom output formats
 - ⚡ High-performance CSV export using PostgreSQL native **COPY** mode (`--with-copy`)
 - 🔧 Customizable CSV delimiter and header
-- 🗜️ Compression: **gzip** / **zip** 
+- 🗜️ Compression: **gzip** / **zip** / **zstd** 
 - ⚙️ Simple configuration via environment variables or `.env` file
 - 🔗 DSN connection string support (`--dsn`)
 - 🔗 **Individual connection flags** for maximum flexibility
@@ -184,7 +184,7 @@ pgxport [command] [flags]
 | `--fail-on-empty` | `-x` | Exit with error if query returns 0 rows | `false` | No |
 | `--table` | `-t` | Table name for SQL INSERT exports (supports schema.table) | - | For SQL format |
 | `--insert-batch` | - | Number of rows per INSERT statement for SQL exports | `1` | No |
-| `--compression` | `-z` | Compression (none, gzip, zip) | `none` | No |
+| `--compression` | `-z` | Compression (none, gzip, zip, zstd) | `none` | No |
 | `--dsn` | - | Database connection string | - | No |
 | `--verbose` | `-v` | Enable verbose output with detailed debug information | `false` | No |
 | `--quiet` | `-q` | Suppress all output except errors | `false` | No |
@@ -212,7 +212,7 @@ _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 | TEMPLATE | ✅ | ✅ | ❌ |
 
 ### Common Flags (All Formats)
-- `--compression` - Enable compression (gzip/zip)
+- `--compression` - Enable compression (gzip/zip/zstd)
 - `--time-format` - Custom date/time format
 - `--time-zone` - Timezone conversion
 - `--fail-on-empty` - Fail if query returns 0 rows
@@ -275,11 +275,12 @@ pgxport -s "SELECT * FROM logs" -o logs.csv -f csv -z gzip
 # Export with zip compression (creates logs.zip containing logs.csv)
 pgxport -s "SELECT * FROM logs" -o logs.csv -f csv -z zip
 
+# Export with zstd compression
+pgxport -s "SELECT * FROM logs" -o logs.csv -f csv -z zstd
+
 # Export to Excel XLSX format
 pgxport -s "SELECT * FROM products" -o products.xlsx -f xlsx
 
-# Export XLSX with compression
-pgxport -s "SELECT * FROM large_dataset" -o data.xlsx -f xlsx -z gzip
 
 # Export using custom template (full mode)
 pgxport -s "SELECT * FROM users" -o report.html -f template --tpl-file template.html
@@ -558,7 +559,7 @@ This mode streams data directly from the database server, reducing CPU and memor
 **Benefits:**
 - 🚀 Up to 10× faster than row-by-row export for large datasets
 - 💾 Low memory footprint
-- 🗜️ Compatible with compression (gzip, zip)
+- 🗜️ Compatible with compression (gzip, zip, zstd)
 - 📄 Identical CSV output format
 
 **Limitations:**
@@ -597,7 +598,6 @@ pgxport -s "SELECT * FROM analytics_data" -o analytics.csv -f csv --with-copy
 - ✅ **Streaming architecture**: Handles large datasets efficiently without memory issues
 - ✅ **All PostgreSQL data types supported**: integers, floats, strings, booleans, timestamps, NULL
 - ✅ **Native date handling**: Dates and timestamps use Excel's native date format for proper Excel compatibility
-- ✅ **Compression compatible**: Works with gzip and zip compression
 - ✅ **Multi-sheet ready**: Single sheet export (future: multi-sheet support)
 
 **Note:** XLSX format uses Excel's native date/time handling. The `--time-format` and `--time-zone` options are not applied to maintain proper Excel compatibility.
@@ -615,7 +615,6 @@ pgxport -s "SELECT * FROM analytics_data" -o analytics.csv -f csv --with-copy
 - **Rich template functions** for data transformation
 - Default timestamp format: `yyyy-MM-dd HH:mm:ss` (customizable with `--time-format`)
 - Timezone: Local system time (customizable with `--time-zone`)
-- Compatible with compression (gzip/zip)
 
 #### Template Modes
 
@@ -1077,6 +1076,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Quiet mode
 - XLSX support
 - Template support
+- ZSTD support (fast compression)
 
 
 ### 🚧 Planned
