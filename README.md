@@ -37,7 +37,7 @@ A simple, powerful and efficient CLI tool to export PostgreSQL query results to 
 - 📊 Export to **CSV**, **JSON**, **XML**, **YAML** ,  **SQL** , **Microsoft Excel (XLSX)** and **Template** for custom output formats
 - ⚡ High-performance CSV export using PostgreSQL native **COPY** mode (`--with-copy`)
 - 🔧 Customizable CSV delimiter and header
-- 🗜️ Compression: **gzip** / **zip** / **zstd** 
+- 🗜️ Compression: **gzip** / **zip** / **zstd** / **lz4**
 - ⚙️ Simple configuration via environment variables or `.env` file
 - 🔗 DSN connection string support (`--dsn`)
 - 🔗 **Individual connection flags** for maximum flexibility
@@ -184,7 +184,7 @@ pgxport [command] [flags]
 | `--fail-on-empty` | `-x` | Exit with error if query returns 0 rows | `false` | No |
 | `--table` | `-t` | Table name for SQL INSERT exports (supports schema.table) | - | For SQL format |
 | `--insert-batch` | - | Number of rows per INSERT statement for SQL exports | `1` | No |
-| `--compression` | `-z` | Compression (none, gzip, zip, zstd) | `none` | No |
+| `--compression` | `-z` | Compression (none, gzip, zip, zstd, lz4) | `none` | No |
 | `--dsn` | - | Database connection string | - | No |
 | `--verbose` | `-v` | Enable verbose output with detailed debug information | `false` | No |
 | `--quiet` | `-q` | Suppress all output except errors | `false` | No |
@@ -212,7 +212,7 @@ _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 | TEMPLATE | ✅ | ✅ | ❌ |
 
 ### Common Flags (All Formats)
-- `--compression` - Enable compression (gzip/zip/zstd)
+- `--compression` - Enable compression (gzip/zip/zstd/lz4)
 - `--time-format` - Custom date/time format
 - `--time-zone` - Timezone conversion
 - `--fail-on-empty` - Fail if query returns 0 rows
@@ -559,7 +559,7 @@ This mode streams data directly from the database server, reducing CPU and memor
 **Benefits:**
 - 🚀 Up to 10× faster than row-by-row export for large datasets
 - 💾 Low memory footprint
-- 🗜️ Compatible with compression (gzip, zip, zstd)
+- 🗜️ Compatible with compression (gzip, zip, zstd, lz4)
 - 📄 Identical CSV output format
 
 **Limitations:**
@@ -1077,7 +1077,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - XLSX support
 - Template support
 - ZSTD support (fast compression)
-
+- LZ4 support (fast compression)
 
 ### 🚧 Planned
 - [ ] Excel (XLSX) multi-sheet export  
