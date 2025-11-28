@@ -335,7 +335,7 @@ func validateExportParams() error {
 	if compression == "" {
 		compression = "none"
 	}
-	validCompressions := []string{"none", "gzip", "zip"}
+	validCompressions := []string{"none", "gzip", "zip", "zstd"}
 	compressionValid := false
 	for _, c := range validCompressions {
 		if compression == c {

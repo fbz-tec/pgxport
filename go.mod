@@ -6,6 +6,7 @@ require (
 	github.com/elliotchance/orderedmap/v3 v3.1.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
+	github.com/klauspost/compress v1.18.1
 	github.com/spf13/cobra v1.10.1
 	github.com/xuri/excelize/v2 v2.10.0
 	gopkg.in/yaml.v3 v3.0.1
