@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 func TestCreateOutputWriter_NoCompression(t *testing.T) {
@@ -174,7 +176,7 @@ func TestCreateOutputWriter_ZSTD(t *testing.T) {
 	}
 	defer file.Close()
 
-	zstReader, err := gzip.NewReader(file)
+	zstReader, err := zstd.NewReader(file)
 	if err != nil {
 		t.Fatalf("Failed to create zstd reader: %v", err)
 	}
