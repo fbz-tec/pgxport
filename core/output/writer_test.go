@@ -134,6 +134,93 @@ func TestCreateOutputWriter_GZIP_AlreadyHasExtension(t *testing.T) {
 	}
 }
 
+func TestCreateOutputWriter_ZSTD(t *testing.T) {
+	tmpDir := t.TempDir()
+	testPath := filepath.Join(tmpDir, "test.csv")
+
+	cfg := OutputConfig{
+		Format:      "csv",
+		Compression: "zstd",
+		Path:        testPath,
+	}
+
+	writer, err := CreateWriter(cfg)
+	if err != nil {
+		t.Fatalf("CreateWriter() error = %v", err)
+	}
+
+	// Write test data
+	testData := "test,data,row\n1,2,3\n"
+	_, err = writer.Write([]byte(testData))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	// Verify .zst extension was added
+	expectedPath := testPath + ".zst"
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("Expected file %s does not exist", expectedPath)
+	}
+
+	// Read and decompress to verify content
+	file, err := os.Open(expectedPath)
+	if err != nil {
+		t.Fatalf("Failed to open zstd file: %v", err)
+	}
+	defer file.Close()
+
+	zstReader, err := gzip.NewReader(file)
+	if err != nil {
+		t.Fatalf("Failed to create zstd reader: %v", err)
+	}
+	defer zstReader.Close()
+
+	content, err := io.ReadAll(zstReader)
+	if err != nil {
+		t.Fatalf("Failed to read zstd content: %v", err)
+	}
+
+	if string(content) != testData {
+		t.Errorf("Decompressed content = %q, want %q", string(content), testData)
+	}
+}
+
+func TestCreateOutputWriter_ZSTD_AlreadyHasExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	testPath := filepath.Join(tmpDir, "test.csv.zst")
+
+	cfg := OutputConfig{
+		Format:      "csv",
+		Compression: "zstd",
+		Path:        testPath,
+	}
+
+	writer, err := CreateWriter(cfg)
+	if err != nil {
+		t.Fatalf("CreateWriter() error = %v", err)
+	}
+
+	testData := "test data"
+	writer.Write([]byte(testData))
+	writer.Close()
+
+	// Should not add another .zst extension
+	if _, err := os.Stat(testPath); os.IsNotExist(err) {
+		t.Errorf("Expected file %s does not exist", testPath)
+	}
+
+	// Should not create test.csv.zst.zst
+	doublePath := testPath + ".zst"
+	if _, err := os.Stat(doublePath); !os.IsNotExist(err) {
+		t.Errorf("Unexpected file %s exists", doublePath)
+	}
+}
+
 func TestCreateOutputWriter_ZIP(t *testing.T) {
 	tmpDir := t.TempDir()
 	testPath := filepath.Join(tmpDir, "test.csv")
@@ -266,6 +353,9 @@ func TestCreateOutputWriter_CompressionCaseInsensitive(t *testing.T) {
 		{"mixed case ZiP", "ZiP", true},
 		{"lowercase none", "none", true},
 		{"uppercase NONE", "NONE", true},
+		{"lowercase zstd", "zstd", true},
+		{"uppercase ZSTD", "ZSTD", true},
+		{"mixed case ZsTd", "ZsTd", true},
 	}
 
 	for _, tt := range tests {
