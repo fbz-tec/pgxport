@@ -33,6 +33,7 @@ type ExportOptions struct {
 	TemplateRow       string // streaming row (required for streaming)
 	TemplateFooter    string // streaming footer
 	TemplateStreaming bool   // enable streaming mode
+	ProgressBar       bool   // show progress bar
 }
 
 // Exporter interface defines export operations
