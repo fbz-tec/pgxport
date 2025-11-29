@@ -138,7 +138,7 @@ func (l *ConsoleLogger) Info(format string, args ...any) {
 	if !isTTY {
 		icon = "INFO"
 	}
-	l.log(l.output, fmt.Sprintf("[%s] %s", l.timestamp(), icon), blueColor, format, args...)
+	l.log(l.output, icon, blueColor, format, args...)
 }
 
 func (l *ConsoleLogger) Debug(format string, args ...any) {
@@ -162,7 +162,7 @@ func (l *ConsoleLogger) Success(format string, args ...any) {
 	if !isTTY {
 		icon = "SUCCESS"
 	}
-	l.log(l.output, fmt.Sprintf("[%s] %s", l.timestamp(), icon), greenColor, format, args...)
+	l.log(l.output, icon, greenColor, format, args...)
 }
 
 func (l *ConsoleLogger) Warn(format string, args ...any) {
@@ -173,7 +173,7 @@ func (l *ConsoleLogger) Warn(format string, args ...any) {
 	if !isTTY {
 		icon = "WARN"
 	}
-	l.log(l.output, fmt.Sprintf("[%s] %s", l.timestamp(), icon), yellowColor, format, args...)
+	l.log(l.output, icon, yellowColor, format, args...)
 }
 
 func (l *ConsoleLogger) Error(format string, args ...any) {
@@ -181,5 +181,5 @@ func (l *ConsoleLogger) Error(format string, args ...any) {
 	if !isTTY {
 		icon = "ERROR"
 	}
-	l.log(l.errOut, fmt.Sprintf("[%s] %s", l.timestamp(), icon), redColor, format, args...)
+	l.log(l.errOut, icon, redColor, format, args...)
 }

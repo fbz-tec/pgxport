@@ -14,6 +14,7 @@ import (
 	"github.com/fbz-tec/pgxport/internal/version"
 	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 	noHeader        bool
 	verbose         bool
 	quiet           bool
+	progressBar     bool
 	rowPerStatement int
 	// Connection flags
 	dbHost     string
@@ -132,6 +134,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&failOnEmpty, "fail-on-empty", "x", false, "Exit with error if query returns 0 rows")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output with detailed information")
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Enable quiet mode: only display error messages")
+	rootCmd.Flags().BoolVarP(&progressBar, "progress", "", false, "Show a progress bar during export (TTY only)")
 
 	if err := rootCmd.MarkFlagRequired("output"); err != nil {
 		logger.Error(err.Error())
@@ -148,11 +151,17 @@ func init() {
 		if quiet {
 			logger.SetQuiet(true)
 			logger.SetVerbose(false)
+			progressBar = false
 		} else {
 			logger.SetVerbose(verbose)
 			if verbose {
 				logger.Debug("Verbose mode enabled")
+				progressBar = false
 			}
+		}
+
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
+			progressBar = false
 		}
 
 	}
@@ -267,6 +276,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		TemplateRow:       templateRow,
 		TemplateFooter:    templateFooter,
 		TemplateStreaming: templateFile == "",
+		ProgressBar:       progressBar,
 	}
 
 	exporter, err = exporters.Get(format)
