@@ -194,6 +194,7 @@ pgxport [command] [flags]
 | `--user` |`-u`| Database username | - | No* |
 | `--database` |`-d` | Database name | - | No* |
 | `--password` |`-p` | Database password | - | No* |
+| `--progress` | - | Show a live spinner during export | `false` | No* |
 
 _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 
@@ -218,6 +219,7 @@ _* Either `--sql` or `--sqlfile` must be provided (but not both)_
 - `--fail-on-empty` - Fail if query returns 0 rows
 - `--verbose` - Detailed logging
 - `--quiet` - Suppress all output except errors
+- `--progress` – Show a live spinner during export (streaming formats only)
 
 ### Format-Specific Flags
 
@@ -247,6 +249,9 @@ pgxport -s "SELECT id, name, email FROM users" -o users.csv -f csv --no-header
 
 # Execute query from a SQL file
 pgxport -F queries/monthly_report.sql -o report.csv
+
+# Show progress spinner during export
+pgxport -s "SELECT * FROM big_table" -o big.csv --progress
 
 # Use the high-performance COPY mode for large CSV exports
 pgxport -s "SELECT * FROM big_table" -o big_table.csv -f csv --with-copy
@@ -532,6 +537,18 @@ $ pgxport -s "SELECT * FROM users LIMIT 5" -o users.csv -v
 ```
 
 **Note:** Sensitive information (passwords) is automatically masked in logs.
+
+## 🔄 Progress Indicator (`--progress`)
+Enable a live spinner during export:
+
+```bash
+pgxport -s "SELECT * FROM big_table" -o output.csv --progress
+```
+**Example output:**
+```log
+⠙ Processing rows... 1717965 rows [5s]
+✓ Completed!
+```
 
 ## 📄 Format Details
 
@@ -1065,19 +1082,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🗺️ Roadmap
 
 ### ✅ Completed
+
+#### Core Features
 - `.env` configuration  
 - `--dsn` flag  
-- XML / JSON / SQL / YAML / XLSX exporters  
-- COPY mode  
-- Streaming + compression  
+- Individual connection flags  
+- Quiet mode  
 - Fail-on-empty mode  
-- Batch SQL inserts
-- Individual connection flags
-- Quiet mode
-- XLSX support
-- Template support
-- ZSTD support (fast compression)
-- LZ4 support (fast compression)
+- COPY mode  
+
+#### Exporters
+- CSV (streaming)  
+- JSON (streaming)  
+- XML (streaming)  
+- SQL (INSERT statements)  
+- YAML exporter  
+- XLSX exporter  
+- Template exporter  
+
+#### Performance
+- Streaming + compression  
+- Batch SQL inserts  
+- ZSTD compression support (fast)  
+- LZ4 compression support (fast)
+
+#### User Experience
+- Progress indicator (`--progress`) using a lightweight spinner
 
 ### 🚧 Planned
 - [ ] Excel (XLSX) multi-sheet export  
