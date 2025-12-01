@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -56,6 +57,14 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
 	rowCount := 0
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
+
 	for rows.Next() {
 		vals, err := rows.Values()
 		if err != nil {
@@ -66,6 +75,9 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 		allRows = append(allRows, rowMap)
 
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -93,6 +105,8 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 	if err := tpl.Execute(writer, data); err != nil {
 		return rowCount, fmt.Errorf("error executing template: %w", err)
 	}
+
+	sp.stopSpinner("Completed!")
 
 	logger.Debug("TEMPLATE full export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
@@ -149,6 +163,13 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 	}
 
 	rowCount := 0
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
 
 	// Stream row-by-row
 	for rows.Next() {
@@ -165,6 +186,9 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 		}
 
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -182,6 +206,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 		}
 	}
 
+	sp.stopSpinner("Completed!")
 	logger.Debug("TEMPLATE streaming export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
 }

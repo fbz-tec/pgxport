@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -79,6 +80,14 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowCount := 0
 	lastLog := time.Now()
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
+
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -97,6 +106,9 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 		rowCount++
 		currentRow++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 
 		// Log progress every 10000 rows
 		if rowCount%10000 == 0 {
@@ -134,6 +146,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	logger.Debug("XLSX export completed: %d rows in %.2fs (%.2f rows/sec)",
 		rowCount, elapsed.Seconds(), float64(rowCount)/elapsed.Seconds())
 
+	sp.stopSpinner("Completed!")
 	return rowCount, nil
 }
 

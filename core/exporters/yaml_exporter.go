@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -44,7 +45,13 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowEncoder := encoders.NewOrderedYamlEncoder(options.TimeFormat, options.TimeZone)
 
 	rowCount := 0
+	var sp spinner
 
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -68,6 +75,9 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		// Add to sequence
 		rootSeq.Content = append(rootSeq.Content, rowNode)
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("[1/2] Processing rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 
 		if rowCount%10000 == 0 {
 			logger.Debug("%d YAML rows processed...", rowCount)
@@ -78,6 +88,16 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	sp.stopSpinner(fmt.Sprintf("Completed! [%ds]", int(time.Since(start).Seconds())))
+
+	var sp2 spinner
+	if options.ProgressBar {
+		sp2 = newSpinner()
+		cancel := sp2.p.Start(context.Background())
+		defer cancel()
+	}
+	sp2.showProgressSpinner("[2/2] Encoding processed rows to yaml format ...")
+	start2 := time.Now()
 	// Encode final YAML sequence
 	if err := enc.Encode(rootSeq); err != nil {
 		return rowCount, fmt.Errorf("error writing YAML: %w", err)
@@ -85,6 +105,8 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 	logger.Debug("YAML export completed: %d rows written in %v",
 		rowCount, time.Since(start))
+
+	sp2.stopSpinner(fmt.Sprintf("Completed! [%ds]", int(time.Since(start2).Seconds())))
 
 	return rowCount, nil
 }

@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"time"
@@ -57,6 +58,14 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	logger.Debug("Starting to write XML rows...")
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
+
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -106,6 +115,9 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 		}
 
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 
 		if rowCount%10000 == 0 {
 			logger.Debug("%d XML rows written...", rowCount)
@@ -131,6 +143,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	}
 
 	logger.Debug("XML export completed successfully: %d rows written in %v", rowCount, time.Since(start))
+	sp.stopSpinner("Completed!")
 
 	return rowCount, nil
 }

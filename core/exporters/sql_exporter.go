@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -43,6 +44,13 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	var statementCount int
 	batchInsertValues := make([][]string, 0, options.RowPerStatement)
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -57,6 +65,9 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 		}
 
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 		batchInsertValues = append(batchInsertValues, record)
 
 		// Write batch when full
@@ -87,7 +98,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	logger.Debug("SQL export completed successfully: %d rows written in %d INSERT statements (%v)",
 		rowCount, statementCount, time.Since(start))
-
+	sp.stopSpinner("Completed!")
 	return rowCount, nil
 }
 

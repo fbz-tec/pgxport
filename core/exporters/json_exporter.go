@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -43,6 +44,14 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowCount := 0
 	logger.Debug("Starting to write JSON objects...")
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
+
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -79,6 +88,9 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		}
 
 		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 
 		if rowCount%10000 == 0 {
 			logger.Debug("%d JSON objects written...", rowCount)
@@ -93,6 +105,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	if _, err := writerCloser.Write([]byte("\n]\n")); err != nil {
 		return rowCount, fmt.Errorf("error writing end of JSON array: %w", err)
 	}
+	sp.stopSpinner("Completed!")
 
 	logger.Debug("JSON export completed successfully: %d rows written in %v", rowCount, time.Since(start))
 
