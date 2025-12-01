@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -58,12 +58,11 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	logger.Debug("Starting to write XML rows...")
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	for rows.Next() {
@@ -115,7 +114,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 		}
 
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -143,7 +142,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	}
 
 	logger.Debug("XML export completed successfully: %d rows written in %v", rowCount, time.Since(start))
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 
 	return rowCount, nil
 }

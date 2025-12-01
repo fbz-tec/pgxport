@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/encoders"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -44,12 +44,11 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowCount := 0
 	logger.Debug("Starting to write JSON objects...")
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	for rows.Next() {
@@ -88,7 +87,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		}
 
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -105,7 +104,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	if _, err := writerCloser.Write([]byte("\n]\n")); err != nil {
 		return rowCount, fmt.Errorf("error writing end of JSON array: %w", err)
 	}
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 
 	logger.Debug("JSON export completed successfully: %d rows written in %v", rowCount, time.Since(start))
 

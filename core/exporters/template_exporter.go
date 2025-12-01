@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/cases"
@@ -57,12 +57,11 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
 	rowCount := 0
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	for rows.Next() {
@@ -75,7 +74,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 		allRows = append(allRows, rowMap)
 
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("[1/2] Exporting rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 	}
@@ -83,6 +82,8 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 	if err := rows.Err(); err != nil {
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
+
+	sp.Stop("Completed!")
 
 	writer, err := output.CreateWriter(output.OutputConfig{
 		Path:        options.OutputPath,
@@ -102,11 +103,18 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 		"GeneratedAt": time.Now().Format(time.RFC3339),
 	}
 
+	var sp2 *ui.Spinner
+	if options.ProgressBar {
+		sp2 = ui.NewSpinner()
+		sp2.Start()
+	}
+	sp2.Update("[2/2] Writing output...")
+
 	if err := tpl.Execute(writer, data); err != nil {
 		return rowCount, fmt.Errorf("error executing template: %w", err)
 	}
 
-	sp.stopSpinner("Completed!")
+	sp2.Stop("Completed!")
 
 	logger.Debug("TEMPLATE full export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
@@ -163,12 +171,11 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 	}
 
 	rowCount := 0
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	// Stream row-by-row
@@ -186,7 +193,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 		}
 
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Exporting rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 	}
@@ -206,7 +213,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 		}
 	}
 
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 	logger.Debug("TEMPLATE streaming export completed: %d rows in %.2fs", rowCount, time.Since(start).Seconds())
 	return rowCount, nil
 }
