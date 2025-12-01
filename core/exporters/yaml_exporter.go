@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/encoders"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 	"gopkg.in/yaml.v3"
 )
@@ -45,12 +45,11 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowEncoder := encoders.NewOrderedYamlEncoder(options.TimeFormat, options.TimeZone)
 
 	rowCount := 0
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 	for rows.Next() {
 		values, err := rows.Values()
@@ -75,7 +74,7 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		// Add to sequence
 		rootSeq.Content = append(rootSeq.Content, rowNode)
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("[1/2] Processing rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("[1/2] Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -88,25 +87,22 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	sp.stopSpinner(fmt.Sprintf("Completed! [%ds]", int(time.Since(start).Seconds())))
+	sp.Stop("Completed!")
 
-	var sp2 spinner
+	var sp2 *ui.Spinner
 	if options.ProgressBar {
-		sp2 = newSpinner()
-		cancel := sp2.p.Start(context.Background())
-		defer cancel()
+		sp2 = ui.NewSpinner()
+		sp2.Start()
 	}
-	sp2.showProgressSpinner("[2/2] Encoding processed rows to yaml format ...")
-	start2 := time.Now()
+	sp2.Update("[2/2] Writing output...")
 	// Encode final YAML sequence
 	if err := enc.Encode(rootSeq); err != nil {
 		return rowCount, fmt.Errorf("error writing YAML: %w", err)
 	}
+	sp2.Stop("Completed!")
 
 	logger.Debug("YAML export completed: %d rows written in %v",
 		rowCount, time.Since(start))
-
-	sp2.stopSpinner(fmt.Sprintf("Completed! [%ds]", int(time.Since(start2).Seconds())))
 
 	return rowCount, nil
 }

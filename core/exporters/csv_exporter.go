@@ -10,6 +10,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -56,12 +57,11 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	// Write data rows
 	logger.Debug("Starting to write CSV rows...")
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	rowCount := 0
@@ -86,7 +86,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 			return 0, fmt.Errorf("error writing row %d: %w", rowCount, err)
 		}
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -130,7 +130,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 			logger.Info("For better performance, use --with-copy flag (PostgreSQL COPY is 10-100x faster)")
 		}
 	}
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 	return rowCount, nil
 }
 

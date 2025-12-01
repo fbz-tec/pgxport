@@ -1,13 +1,13 @@
 package exporters
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 	"github.com/xuri/excelize/v2"
 )
@@ -80,12 +80,11 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	rowCount := 0
 	lastLog := time.Now()
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 
 	for rows.Next() {
@@ -106,7 +105,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 		rowCount++
 		currentRow++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -146,7 +145,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	logger.Debug("XLSX export completed: %d rows in %.2fs (%.2f rows/sec)",
 		rowCount, elapsed.Seconds(), float64(rowCount)/elapsed.Seconds())
 
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 	return rowCount, nil
 }
 

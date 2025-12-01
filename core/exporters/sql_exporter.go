@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -44,12 +44,11 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	var statementCount int
 	batchInsertValues := make([][]string, 0, options.RowPerStatement)
 
-	var sp spinner
+	var sp *ui.Spinner
 
 	if options.ProgressBar {
-		sp = newSpinner()
-		cancel := sp.p.Start(context.Background())
-		defer cancel()
+		sp = ui.NewSpinner()
+		sp.Start()
 	}
 	for rows.Next() {
 		values, err := rows.Values()
@@ -65,7 +64,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 		}
 
 		rowCount++
-		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 		batchInsertValues = append(batchInsertValues, record)
@@ -98,7 +97,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	logger.Debug("SQL export completed successfully: %d rows written in %d INSERT statements (%v)",
 		rowCount, statementCount, time.Since(start))
-	sp.stopSpinner("Completed!")
+	sp.Stop("Completed!")
 	return rowCount, nil
 }
 
