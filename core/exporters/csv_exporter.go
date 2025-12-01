@@ -10,14 +10,10 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
-	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
-	"github.com/schollz/progressbar/v3"
 )
 
 type csvExporter struct{}
-
-var bar *progressbar.ProgressBar
 
 // Export writes query results to a CSV file with buffered I/O.
 func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
@@ -25,10 +21,6 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	logger.Debug("Preparing CSV export (delimiter=%q, noHeader=%v, compression=%s)",
 		string(options.Delimiter), options.NoHeader, options.Compression)
-
-	if bar == nil && options.ProgressBar {
-		bar = ui.NewProgressBar()
-	}
 
 	writerCloser, err := output.CreateWriter(output.OutputConfig{
 		Path:        options.OutputPath,
@@ -64,18 +56,21 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	// Write data rows
 	logger.Debug("Starting to write CSV rows...")
 
+	var sp spinner
+
+	if options.ProgressBar {
+		sp = newSpinner()
+		cancel := sp.p.Start(context.Background())
+		defer cancel()
+	}
+
 	rowCount := 0
 	lastLog := time.Now()
 	var fetchTime time.Duration // Track time spent waiting for rows from PostgreSQL
 
-	for {
+	for rows.Next() {
 		fetchStart := time.Now()
-		hasNext := rows.Next()
 		fetchTime += time.Since(fetchStart)
-
-		if !hasNext {
-			break
-		}
 
 		values, err := rows.Values()
 		if err != nil {
@@ -87,15 +82,13 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 			record[i] = formatters.FormatCSVValue(v, fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
 		}
 
-		rowCount++
-		if bar != nil {
-			bar.Describe(fmt.Sprintf("Exporting rows... %d rows", rowCount))
-			bar.Add(1)
-		}
-
 		if err := writer.Write(record); err != nil {
 			return 0, fmt.Errorf("error writing row %d: %w", rowCount, err)
 		}
+		rowCount++
+		sp.showProgressSpinner(fmt.Sprintf("Exporting rows... %d rows [%ds]",
+			rowCount,
+			int(time.Since(start).Seconds())))
 
 		if logger.IsVerbose() && (rowCount%10000 == 0 || time.Since(lastLog) > 2*time.Second) {
 			elapsed := time.Since(start)
@@ -108,6 +101,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 			writer.Flush()
 			lastLog = time.Now()
 		}
+
 	}
 
 	logger.Debug("Flushing CSV buffers to disk...")
@@ -119,19 +113,6 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 	if err := rows.Err(); err != nil {
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	if bar != nil {
-		finalElapsed := int(time.Since(start).Seconds())
-
-		// Force a last refresh
-		bar.Describe(fmt.Sprintf("Exporting rows... %d rows [%ds]", rowCount, finalElapsed))
-		bar.Add(0)
-
-		bar.Clear()
-		fmt.Println()
-
-		bar = nil // reset for next exporter
 	}
 
 	elapsed := time.Since(start)
@@ -149,7 +130,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 			logger.Info("For better performance, use --with-copy flag (PostgreSQL COPY is 10-100x faster)")
 		}
 	}
-
+	sp.stopSpinner("Completed!")
 	return rowCount, nil
 }
 
