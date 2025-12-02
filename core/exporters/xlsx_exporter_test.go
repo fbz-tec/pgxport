@@ -526,6 +526,56 @@ func TestWriteXLSXColumnOrder(t *testing.T) {
 	}
 }
 
+func TestXLSXMultiSheet(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "multi.xlsx")
+
+	// Generate >1,048,576 rows (Excel limit)
+	query := `
+        SELECT generate_series(1, 1_100_000) AS id,
+               'x' AS col
+    `
+	ctx := context.Background()
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		t.Fatalf("Failed query: %v", err)
+	}
+	defer rows.Close()
+
+	exporter, _ := Get(FormatXLSX)
+
+	options := ExportOptions{
+		Format:      FormatXLSX,
+		OutputPath:  outputPath,
+		Compression: "none",
+		TimeFormat:  "yyyy-MM-dd HH:mm:ss",
+	}
+
+	rowCount, err := exporter.Export(rows, options)
+	if err != nil {
+		t.Fatalf("Export failed: %v", err)
+	}
+
+	if rowCount != 1_100_000 {
+		t.Fatalf("Expected 1.1M rows, got %d", rowCount)
+	}
+
+	f, err := excelize.OpenFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to open XLSX: %v", err)
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+
+	if len(sheets) < 2 {
+		t.Fatalf("Expected multiple sheets, got %d", len(sheets))
+	}
+}
+
 func BenchmarkExportXLSX(b *testing.B) {
 	testURL := os.Getenv("DB_TEST_URL")
 	if testURL == "" {
