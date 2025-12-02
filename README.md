@@ -615,7 +615,7 @@ pgxport -s "SELECT * FROM analytics_data" -o analytics.csv -f csv --with-copy
 - ✅ **Streaming architecture**: Handles large datasets efficiently without memory issues
 - ✅ **All PostgreSQL data types supported**: integers, floats, strings, booleans, timestamps, NULL
 - ✅ **Native date handling**: Dates and timestamps use Excel's native date format for proper Excel compatibility
-- ✅ **Multi-sheet ready**: Single sheet export (future: multi-sheet support)
+- ✅ Automatic multi-sheet support: exports exceeding Excel’s 1,048,576-row limit are seamlessly split across Sheet2, Sheet3, etc.
 
 **Note:** XLSX format uses Excel's native date/time handling. The `--time-format` and `--time-zone` options are not applied to maintain proper Excel compatibility.
 
@@ -1097,7 +1097,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - XML (streaming)  
 - SQL (INSERT statements)  
 - YAML exporter  
-- XLSX exporter  
+- XLSX exporter (auto multi-sheet) 
 - Template exporter  
 
 #### Performance
