@@ -16,6 +16,9 @@ type xlsxExporter struct{}
 
 // Export writes query results to an Excel XLSX file.
 func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+
+	const maxRows = 1_048_576 // Maximum rows in an XLSX sheet
+
 	start := time.Now()
 
 	logger.Debug("Preparing XLSX export (compression=%s)", options.Compression)
@@ -28,9 +31,15 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		}
 	}()
 
-	sheetName := "Sheet1"
+	// Remove default sheet to avoid duplication
+	f.DeleteSheet("Sheet1")
 
 	fields := rows.FieldDescriptions()
+
+	columns := make([]string, len(fields))
+	for i, fd := range fields {
+		columns[i] = string(fd.Name)
+	}
 
 	// Create style for headers if present
 	var headerStyleID int
@@ -48,32 +57,6 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		}
 	}
 
-	// Use StreamWriter for better performance
-	sw, err := f.NewStreamWriter(sheetName)
-	if err != nil {
-		return 0, fmt.Errorf("error creating stream writer: %w", err)
-	}
-
-	// Write headers
-	currentRow := 1
-	if !options.NoHeader {
-		headerCells := make([]interface{}, len(fields))
-		for i, fd := range fields {
-			headerCells[i] = excelize.Cell{
-				Value:   string(fd.Name),
-				StyleID: headerStyleID,
-			}
-		}
-
-		cell, _ := excelize.CoordinatesToCellName(1, currentRow)
-		if err := sw.SetRow(cell, headerCells); err != nil {
-			return 0, fmt.Errorf("error writing headers: %w", err)
-		}
-
-		logger.Debug("XLSX headers written: %d columns", len(fields))
-		currentRow++
-	}
-
 	// Write data rows
 	logger.Debug("Starting to write XLSX rows...")
 
@@ -87,15 +70,43 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 		sp.Start()
 	}
 
+	var sw *excelize.StreamWriter
+	var err error
+	var currentRow int
+	sheetIndex := 1
+
+	sw, currentRow, err = initSheet(columns, options.NoHeader, headerStyleID, f, sheetIndex)
+	if err != nil {
+		return 0, err
+	}
+
 	for rows.Next() {
 		values, err := rows.Values()
+
 		if err != nil {
 			return rowCount, fmt.Errorf("error reading row: %w", err)
 		}
 
+		//format values for excel
 		excelValues := make([]interface{}, len(values))
 		for i, v := range values {
 			excelValues[i] = formatters.FormatXLSXValue(v, fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+		}
+
+		if currentRow > maxRows {
+
+			if err := sw.Flush(); err != nil {
+				return rowCount, fmt.Errorf("error flushing sheet %d: %w", sheetIndex, err)
+			}
+
+			sheetIndex++
+			logger.Debug("Created new sheet Sheet%d (row limit reached)", sheetIndex)
+
+			sw, currentRow, err = initSheet(columns, options.NoHeader, headerStyleID, f, sheetIndex)
+			if err != nil {
+				return 0, err
+			}
+
 		}
 
 		cell, _ := excelize.CoordinatesToCellName(1, currentRow)
@@ -105,6 +116,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 		rowCount++
 		currentRow++
+
 		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
@@ -147,6 +159,42 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 
 	sp.Stop("Completed!")
 	return rowCount, nil
+}
+
+func initSheet(columns []string, noHeader bool, headerStyleID int, f *excelize.File, sheetIndex int) (*excelize.StreamWriter, int, error) {
+
+	sheetName := fmt.Sprintf("Sheet%d", sheetIndex)
+	currentRow := 1
+	if _, err := f.NewSheet(sheetName); err != nil {
+		return nil, currentRow, fmt.Errorf("failed to create new sheet: %w", err)
+	}
+
+	// Use StreamWriter for better performance
+	sw, err := f.NewStreamWriter(sheetName)
+	if err != nil {
+		return nil, currentRow, fmt.Errorf("error creating stream writer: %w", err)
+	}
+
+	// Write headers
+	if !noHeader {
+		headerCells := make([]interface{}, len(columns))
+		for i, col := range columns {
+			headerCells[i] = excelize.Cell{
+				Value:   col,
+				StyleID: headerStyleID,
+			}
+		}
+
+		cell, _ := excelize.CoordinatesToCellName(1, currentRow)
+		if err := sw.SetRow(cell, headerCells); err != nil {
+			return nil, currentRow, fmt.Errorf("error writing headers: %w", err)
+		}
+
+		logger.Debug("XLSX headers written: %d columns", len(columns))
+		currentRow++
+	}
+
+	return sw, currentRow, nil
 }
 
 func init() {
