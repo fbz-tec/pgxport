@@ -1110,10 +1110,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Progress indicator (`--progress`) using a lightweight spinner
 
 ### 🚧 Planned
-- [ ] Excel (XLSX) multi-sheet export  
 - [ ] Interactive password prompt  
-- [ ] Pagination for large queries  
-- [ ] Progress bar & export metrics  
+- [ ] Pagination for large queries 
 - [ ] Data preview before export 
 
 ## 💬 Support
