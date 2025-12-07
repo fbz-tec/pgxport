@@ -36,17 +36,19 @@ func ValidateQuery(query string) error {
 		return fmt.Errorf("query cannot be empty")
 	}
 
-	// Step 1: Remove SQL comments to prevent comment-based evasion
-	cleanedQuery := removeSQLComments(query)
-
-	// Step 2: Split into individual statements (handles multiple queries separated by ;)
-	statements := splitStatements(cleanedQuery)
-
-	if len(statements) > 1 {
+	// Step 1: Check for multiple statements by detecting semicolons (before comment removal)
+	// This prevents attempts to hide multiple statements using comments
+	if hasMultipleStatements(query) {
 		return fmt.Errorf("only a single SQL statement is allowed")
 	}
 
-	// Step 3: Validate each statement
+	// Step 2: Remove SQL comments to prevent comment-based evasion
+	cleanedQuery := removeSQLComments(query)
+
+	// Step 3: Split into individual statements (handles multiple queries separated by ;)
+	statements := splitStatements(cleanedQuery)
+
+	// Step 4: Validate the statement
 	for i, stmt := range statements {
 		if strings.TrimSpace(stmt) == "" {
 			continue
@@ -55,7 +57,7 @@ func ValidateQuery(query string) error {
 		// Normalize statement for analysis
 		normalized := normalizeSQL(stmt)
 
-		// Step 4: Extract the first command from the statement
+		// Step 5: Extract the first command from the statement
 		firstCommand := extractFirstCommand(normalized)
 
 		if firstCommand == "" {
@@ -63,7 +65,7 @@ func ValidateQuery(query string) error {
 			return fmt.Errorf("unable to identify SQL command in statement %d (security: unknown command)", i+1)
 		}
 
-		// Step 5: Check if command is in whitelist (strict whitelist approach)
+		// Step 6: Check if command is in whitelist (strict whitelist approach)
 		if !allowedCommands[firstCommand] {
 			// Check if it's a forbidden command
 			for _, forbidden := range forbiddenCommands {
@@ -75,7 +77,7 @@ func ValidateQuery(query string) error {
 			return fmt.Errorf("unsupported SQL command: %s (only SELECT and WITH are allowed)", firstCommand)
 		}
 
-		// Step 6: Additional security check - scan for forbidden commands even in allowed queries
+		// Step 7: Additional security check - scan for forbidden commands even in allowed queries
 		// This catches attempts to hide commands in CTEs, subqueries, or comments that weren't removed
 		if err := scanForForbiddenCommands(normalized); err != nil {
 			return err
@@ -83,6 +85,124 @@ func ValidateQuery(query string) error {
 	}
 
 	return nil
+}
+
+// hasMultipleStatements checks if the query contains multiple statements
+// by detecting semicolons outside of string literals and comments
+// This is done before comment removal to catch attempts to hide statements
+func hasMultipleStatements(query string) bool {
+	semicolonCount := 0
+	semicolonPos := -1
+	inSingleQuote := false
+	inDoubleQuote := false
+	inSingleLineComment := false
+	inMultiLineComment := false
+
+	queryBytes := []byte(query)
+	i := 0
+
+	for i < len(queryBytes) {
+		char := queryBytes[i]
+
+		// Handle string literals (skip semicolon detection inside strings)
+		if !inSingleLineComment && !inMultiLineComment {
+			if char == '\'' && !inDoubleQuote {
+				if inSingleQuote {
+					// Check for escaped quote ('')
+					if i+1 < len(queryBytes) && queryBytes[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					inSingleQuote = false
+				} else {
+					inSingleQuote = true
+				}
+				i++
+				continue
+			}
+
+			if char == '"' && !inSingleQuote {
+				if inDoubleQuote {
+					// Check for escaped quote ("")
+					if i+1 < len(queryBytes) && queryBytes[i+1] == '"' {
+						i += 2
+						continue
+					}
+					inDoubleQuote = false
+				} else {
+					inDoubleQuote = true
+				}
+				i++
+				continue
+			}
+		}
+
+		// Handle comments (skip semicolon detection inside comments)
+		if !inSingleQuote && !inDoubleQuote {
+			// Check for single-line comment (--)
+			if !inMultiLineComment && i+1 < len(queryBytes) && char == '-' && queryBytes[i+1] == '-' {
+				inSingleLineComment = true
+				i += 2
+				continue
+			}
+
+			// Check for end of single-line comment (newline)
+			if inSingleLineComment {
+				if char == '\n' {
+					inSingleLineComment = false
+				}
+				i++
+				continue
+			}
+
+			// Check for multi-line comment start (/*)
+			if !inSingleLineComment && i+1 < len(queryBytes) && char == '/' && queryBytes[i+1] == '*' {
+				inMultiLineComment = true
+				i += 2
+				continue
+			}
+
+			// Check for multi-line comment end (*/)
+			if inMultiLineComment {
+				if i+1 < len(queryBytes) && char == '*' && queryBytes[i+1] == '/' {
+					inMultiLineComment = false
+					i += 2
+					continue
+				}
+				i++
+				continue
+			}
+		}
+
+		// Count semicolons outside of strings and comments
+		if !inSingleQuote && !inDoubleQuote && !inSingleLineComment && !inMultiLineComment {
+			if char == ';' {
+				semicolonCount++
+				// Store position of first semicolon
+				if semicolonPos == -1 {
+					semicolonPos = i
+				}
+				// If we find more than one semicolon, we have multiple statements
+				if semicolonCount > 1 {
+					return true
+				}
+			}
+		}
+
+		i++
+	}
+
+	// If we have exactly one semicolon, check if it's at the end (allowed) or in the middle (multiple statements)
+	if semicolonCount == 1 && semicolonPos != -1 {
+		// Check what comes after the semicolon
+		afterSemicolon := strings.TrimSpace(query[semicolonPos+1:])
+		// If there's anything after the semicolon (even just a comment), it's multiple statements
+		if len(afterSemicolon) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // removeSQLComments removes SQL comments from the query

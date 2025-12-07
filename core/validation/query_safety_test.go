@@ -158,18 +158,19 @@ func TestValidateQuery(t *testing.T) {
 			name:    "chained DELETE",
 			query:   "SELECT 1; DELETE FROM users",
 			wantErr: true,
-			errMsg:  "DELETE",
+			errMsg:  "only a single SQL statement",
 		},
 		{
 			name:    "multiple forbidden commands",
 			query:   "SELECT 1; DROP TABLE users; SELECT 2",
 			wantErr: true,
-			errMsg:  "DROP",
+			errMsg:  "only a single SQL statement",
 		},
 		{
 			name:    "valid multiple SELECTs",
 			query:   "SELECT 1; SELECT 2; SELECT 3",
-			wantErr: false,
+			wantErr: true,
+			errMsg:  "only a single SQL statement",
 		},
 
 		// ========== Comment Evasion Attempts ==========
@@ -280,12 +281,14 @@ func TestValidateQuery(t *testing.T) {
 		{
 			name:    "attack: comment hiding DELETE",
 			query:   "SELECT * FROM users; -- DELETE FROM users;",
-			wantErr: false, // Comment removed, only SELECT remains
+			wantErr: true, // Multiple statements detected (semicolon creates second statement even if comment is removed)
+			errMsg:  "only a single SQL statement",
 		},
 		{
 			name:    "attack: multi-line comment hiding DELETE",
 			query:   "SELECT * FROM users; /* DELETE FROM users; */",
-			wantErr: false, // Comment removed, only SELECT remains
+			wantErr: true, // Multiple statements detected (semicolon creates second statement even if comment is removed)
+			errMsg:  "only a single SQL statement",
 		},
 		{
 			name:    "attack: string containing command",
@@ -301,7 +304,7 @@ func TestValidateQuery(t *testing.T) {
 			name:    "attack: actual DELETE after valid SELECT",
 			query:   "SELECT 1; DELETE FROM users",
 			wantErr: true,
-			errMsg:  "DELETE",
+			errMsg:  "only a single SQL statement",
 		},
 		{
 			name:    "attack: WITH containing DELETE",
