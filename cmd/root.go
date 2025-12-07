@@ -170,6 +170,8 @@ func init() {
 
 }
 
+// Execute runs the root command and handles errors.
+// This is the main entry point for the CLI application.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -177,6 +179,8 @@ func Execute() {
 	}
 }
 
+// runExport is the main export function that orchestrates the export process.
+// It handles query execution, exporter selection, and result processing.
 func runExport(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Initializing pgxport execution environment")
@@ -310,6 +314,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 	return handleExportResult(rowCount, outputPath)
 }
 
+// validateExportParams validates all export parameters before execution.
+// Returns an error if any parameter is invalid or conflicting.
 func validateExportParams() error {
 
 	if verbose && quiet {
@@ -401,6 +407,8 @@ func validateExportParams() error {
 	return nil
 }
 
+// readSQLFromFile reads SQL query content from a file.
+// Returns the file content as a string and an error if file reading fails.
 func readSQLFromFile(filepath string) (string, error) {
 	content, err := os.ReadFile(filepath)
 	if err != nil {
@@ -409,6 +417,8 @@ func readSQLFromFile(filepath string) (string, error) {
 	return string(content), nil
 }
 
+// parseDelimiter parses a delimiter string into a rune.
+// Supports special characters like "\t" for tab and validates single character delimiters.
 func parseDelimiter(delim string) (rune, error) {
 	delim = strings.TrimSpace(delim)
 
@@ -429,6 +439,8 @@ func parseDelimiter(delim string) (rune, error) {
 	return runes[0], nil
 }
 
+// handleExportResult processes the export result and handles empty result cases.
+// Returns an error if failOnEmpty is set and no rows were exported.
 func handleExportResult(rowCount int, outputPath string) error {
 	if rowCount == 0 {
 

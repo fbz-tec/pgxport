@@ -6,11 +6,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// OrderedYamlEncoder encodes YAML while preserving key order.
 type OrderedYamlEncoder struct {
 	timeLayout string
 	timezone   string
 }
 
+// NewOrderedYamlEncoder creates a new ordered YAML encoder with time formatting options.
 func NewOrderedYamlEncoder(timeFormat, timeZone string) OrderedYamlEncoder {
 	return OrderedYamlEncoder{
 		timeLayout: timeFormat,
@@ -18,7 +20,8 @@ func NewOrderedYamlEncoder(timeFormat, timeZone string) OrderedYamlEncoder {
 	}
 }
 
-// EncodeRow builds a YAML mapping node (one record).
+// EncodeRow builds a YAML mapping node (one record) preserving key order.
+// Returns a YAML node and an error if encoding fails.
 func (o OrderedYamlEncoder) EncodeRow(rowData *orderedmap.OrderedMap[string, DataParams]) (*yaml.Node, error) {
 
 	row := &yaml.Node{

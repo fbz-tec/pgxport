@@ -10,15 +10,19 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// PgStore represents a PostgreSQL database store connection.
 type PgStore struct {
 	dsn  string
 	conn *pgx.Conn
 }
 
+// NewPgStore creates a new PostgreSQL store instance with the given DSN.
 func NewPgStore(dsn string) *PgStore {
 	return &PgStore{dsn: dsn}
 }
 
+// Connect establishes a connection to the PostgreSQL database.
+// Returns an error if the connection fails or if ping fails.
 func (s *PgStore) Connect() error {
 	if s.conn != nil {
 		return nil // already connected
@@ -48,6 +52,8 @@ func (s *PgStore) Connect() error {
 	return nil
 }
 
+// Close closes the database connection.
+// Returns an error if the close operation fails.
 func (s *PgStore) Close() error {
 	logger.Debug("Closing database connection...")
 
@@ -65,6 +71,8 @@ func (s *PgStore) Close() error {
 	return nil
 }
 
+// Query executes a SQL query with the given arguments and returns the result rows.
+// Returns an error if the query execution fails or if the store is not connected.
 func (s *PgStore) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	if s.conn == nil {
 		logger.Debug("No active database connection; query cannot be executed")
@@ -86,6 +94,8 @@ func (s *PgStore) Query(ctx context.Context, sql string, args ...any) (pgx.Rows,
 	return rows, nil
 }
 
+// Conn returns the underlying PostgreSQL connection.
+// This is useful for advanced operations like COPY that require direct connection access.
 func (s *PgStore) Conn() *pgx.Conn {
 	return s.conn
 }

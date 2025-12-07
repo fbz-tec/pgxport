@@ -15,6 +15,7 @@ import (
 
 type yamlExporter struct{}
 
+// Export writes query results to a YAML file.
 func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 	logger.Debug("Preparing YAML export (compression=%s)", options.Compression)

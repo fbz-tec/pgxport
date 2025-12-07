@@ -18,6 +18,7 @@ const (
 	DefaultDBDriver = "postgres"
 )
 
+// Config holds database configuration settings.
 type Config struct {
 	DBDriver string
 	DBUser   string
@@ -28,6 +29,8 @@ type Config struct {
 	SSLMode  string
 }
 
+// LoadConfig loads configuration from environment variables and .env file.
+// Returns a Config struct with default values for missing settings.
 func LoadConfig() Config {
 
 	_ = godotenv.Load()
@@ -43,6 +46,8 @@ func LoadConfig() Config {
 	}
 }
 
+// Validate checks that the configuration has valid values.
+// Returns an error if any required field is invalid or empty.
 func (c Config) Validate() error {
 
 	if c.DBPort < 1 || c.DBPort > 65535 {
@@ -64,6 +69,8 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// GetConnectionString builds a PostgreSQL connection string (DSN) from the configuration.
+// The returned string is in the format: postgres://user:password@host:port/dbname?sslmode=...
 func (c Config) GetConnectionString() string {
 	u := &url.URL{
 		Scheme: c.DBDriver,

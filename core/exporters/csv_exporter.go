@@ -134,6 +134,8 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	return rowCount, nil
 }
 
+// ExportCopy uses PostgreSQL COPY command for high-performance CSV export.
+// This method is significantly faster than standard Export for large datasets.
 func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOptions) (int, error) {
 
 	start := time.Now()

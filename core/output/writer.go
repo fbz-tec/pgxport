@@ -14,12 +14,16 @@ const (
 	LZ4  = "lz4"
 )
 
+// OutputConfig holds configuration for output file creation.
 type OutputConfig struct {
 	Path        string
 	Compression string
 	Format      string
 }
 
+// CreateWriter creates a new writer based on the output configuration.
+// Supports various compression formats: none, gzip, zip, zstd, lz4.
+// Returns an error if the compression type is unsupported or file creation fails.
 func CreateWriter(cfg OutputConfig) (io.WriteCloser, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.Compression)) {
 	case None:

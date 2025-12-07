@@ -14,7 +14,7 @@ import (
 
 type jsonExporter struct{}
 
-// writes query results to a JSON file with buffered I/O
+// Export writes query results to a JSON file with buffered I/O.
 func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 	start := time.Now()
 	logger.Debug("Preparing JSON export (indent=2 spaces, compression=%s)", options.Compression)

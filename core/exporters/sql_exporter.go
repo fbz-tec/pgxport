@@ -15,6 +15,7 @@ import (
 
 type sqlExporter struct{}
 
+// Export writes query results as SQL INSERT statements.
 func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()

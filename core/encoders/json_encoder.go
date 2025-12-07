@@ -9,13 +9,13 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 )
 
-// OrderedJsonEncoder encodes JSON while preserving key order
+// OrderedJsonEncoder encodes JSON while preserving key order.
 type OrderedJsonEncoder struct {
 	timeLayout string
 	timezone   string
 }
 
-// NewOrderedJsonEncoder creates a new ordered JSON encoder with time formatting options
+// NewOrderedJsonEncoder creates a new ordered JSON encoder with time formatting options.
 func NewOrderedJsonEncoder(timeFormat, timeZone string) OrderedJsonEncoder {
 	return OrderedJsonEncoder{
 		timeLayout: timeFormat,
@@ -23,7 +23,8 @@ func NewOrderedJsonEncoder(timeFormat, timeZone string) OrderedJsonEncoder {
 	}
 }
 
-// EncodeJSONWithOrder encodes a map to JSON preserving the order with proper indentation
+// EncodeRow encodes a row of data to JSON preserving key order with proper indentation.
+// Returns the JSON bytes and an error if encoding fails.
 func (o OrderedJsonEncoder) EncodeRow(rowData *orderedmap.OrderedMap[string, DataParams]) ([]byte, error) {
 
 	if rowData.Len() == 0 {

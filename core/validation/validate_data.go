@@ -7,7 +7,8 @@ import (
 	"github.com/fbz-tec/pgxport/core/formatters"
 )
 
-// ValidateTimeZone checks if a timezone string is valid
+// ValidateTimeZone checks if a timezone string is valid.
+// Returns an error if the timezone cannot be loaded. Empty string is considered valid (uses local time).
 func ValidateTimeZone(timezone string) error {
 	if timezone == "" {
 		return nil // Empty is valid (uses Local)
@@ -21,7 +22,8 @@ func ValidateTimeZone(timezone string) error {
 	return nil
 }
 
-// ValidateTimeFormat validates that a time format is valid by testing it
+// ValidateTimeFormat validates that a time format string is valid by testing it with a known time.
+// Returns an error if the format cannot be used to format and parse a time value.
 func ValidateTimeFormat(format string) error {
 
 	// Empty format is invalid

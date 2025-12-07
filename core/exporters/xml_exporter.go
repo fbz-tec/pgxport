@@ -14,7 +14,7 @@ import (
 
 type xmlExporter struct{}
 
-// writes query results to an XML file with buffered I/O
+// Export writes query results to an XML file with buffered I/O.
 func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	start := time.Now()

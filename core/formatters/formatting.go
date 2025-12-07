@@ -42,8 +42,8 @@ func formatValue(v interface{}, layout string, loc *time.Location) interface{} {
 	}
 }
 
-// formatValueByOID is the central function that handles all PostgreSQL type conversions
-// It returns interface{} for maximum flexibility across different export formats
+// formatValueByOID is the central function that handles all PostgreSQL type conversions.
+// It returns interface{} for maximum flexibility across different export formats.
 func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, timeZone string) interface{} {
 	if val == nil {
 		return nil
@@ -112,12 +112,14 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 	return val
 }
 
-// formatJSONValue formats a value for JSON export
+// FormatJSONValue formats a PostgreSQL value for JSON export.
+// Handles type-specific conversions including dates, timestamps, UUIDs, and numeric types.
 func FormatJSONValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) interface{} {
 	return formatValueByOID(val, valueType, userTimefmt, timeZone)
 }
 
-// formatCSVValue formats a value for CSV export
+// FormatCSVValue formats a PostgreSQL value for CSV export as a string.
+// Handles type-specific conversions and ensures proper string representation for CSV format.
 func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
 	result := formatValueByOID(val, valueType, userTimefmt, timeZone)
 
@@ -159,7 +161,8 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 	}
 }
 
-// formatXMLValue formats a value for XML export
+// FormatXMLValue formats a PostgreSQL value for XML export as a string.
+// Handles type-specific conversions and ensures proper string representation for XML format.
 func FormatXMLValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
 	result := formatValueByOID(val, valueType, userTimefmt, timeZone)
 
@@ -201,12 +204,14 @@ func FormatXMLValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 	}
 }
 
-// formatYAMLValue formats a value for YAML export
+// FormatYAMLValue formats a PostgreSQL value for YAML export.
+// Handles type-specific conversions including dates, timestamps, UUIDs, and numeric types.
 func FormatYAMLValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) interface{} {
 	return formatValueByOID(val, valueType, userTimefmt, timeZone)
 }
 
-// formatSQLValue formats a value for SQL export
+// FormatSQLValue formats a PostgreSQL value for SQL INSERT statement export.
+// Returns a properly formatted SQL literal with type casting (e.g., 'value'::type).
 func FormatSQLValue(val interface{}, valueType uint32) string {
 	if val == nil {
 		return "NULL"
@@ -311,7 +316,8 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 	}
 }
 
-// formatXLSXValue formats a PostgreSQL value for Excel
+// FormatXLSXValue formats a PostgreSQL value for Excel XLSX export.
+// Preserves native types (dates, times) for Excel compatibility and converts complex types to JSON strings.
 func FormatXLSXValue(value interface{}, oid uint32, timeFormat, timeZone string) interface{} {
 
 	if pgtype.DateOID == oid || pgtype.TimestampOID == oid || pgtype.TimestamptzOID == oid {
@@ -338,6 +344,7 @@ func FormatXLSXValue(value interface{}, oid uint32, timeFormat, timeZone string)
 }
 
 // FormatTemplateValue formats a PostgreSQL value for template-based exports.
+// Converts complex types (JSON, arrays) to JSON strings for template rendering.
 func FormatTemplateValue(val interface{}, oid uint32, userTimefmt string, timeZone string) interface{} {
 
 	if val == nil {
@@ -365,6 +372,8 @@ func FormatTemplateValue(val interface{}, oid uint32, userTimefmt string, timeZo
 	return base
 }
 
+// QuoteIdent quotes a PostgreSQL identifier (table or column name).
+// Handles schema-qualified names (e.g., "schema"."table") and escapes double quotes.
 func QuoteIdent(s string) string {
 	parts := strings.Split(s, ".")
 	for i, part := range parts {
@@ -373,6 +382,9 @@ func QuoteIdent(s string) string {
 	return strings.Join(parts, ".")
 }
 
+// UserTimeZoneFormat converts a user time format string to Go time layout and loads the timezone.
+// Returns the Go time layout format and the timezone location.
+// Falls back to local timezone if the provided timezone is invalid.
 func UserTimeZoneFormat(userTimefmt string, timeZone string) (string, *time.Location) {
 
 	layout := ConvertUserTimeFormat(userTimefmt)
@@ -391,6 +403,8 @@ func UserTimeZoneFormat(userTimefmt string, timeZone string) (string, *time.Loca
 	return layout, loc
 }
 
+// ConvertUserTimeFormat converts a user-friendly time format (e.g., "yyyy-MM-dd HH:mm:ss")
+// to Go's time layout format (e.g., "2006-01-02 15:04:05").
 func ConvertUserTimeFormat(userTimefmt string) string {
 	return timeFormatReplacer.Replace(userTimefmt)
 }

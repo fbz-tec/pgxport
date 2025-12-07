@@ -15,6 +15,7 @@ import (
 type xlsxExporter struct{}
 
 // Export writes query results to an Excel XLSX file.
+// Automatically creates multiple sheets if the row count exceeds Excel's maximum (1,048,576 rows per sheet).
 func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
 
 	const maxRows = 1_048_576 // Maximum rows in an XLSX sheet
@@ -161,6 +162,8 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	return rowCount, nil
 }
 
+// initSheet initializes a new Excel sheet with optional headers.
+// Returns a stream writer, the starting row number, and an error if initialization fails.
 func initSheet(columns []string, noHeader bool, headerStyleID int, f *excelize.File, sheetIndex int) (*excelize.StreamWriter, int, error) {
 
 	sheetName := fmt.Sprintf("Sheet%d", sheetIndex)
