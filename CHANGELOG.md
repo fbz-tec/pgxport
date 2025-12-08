@@ -2,6 +2,12 @@
 
 All notable changes to pgxport will be documented in this file.
 
+## [v2.0.0-rc2] - 2025-12-08
+
+### 🛠️ Fixes & Improvements
+- Hardened SQL validation to correctly reject unsafe or multi-statement queries.
+- Upgraded Go toolchain to the latest version.
+
 ## [v2.0.0-rc1] - 2025-12-02
 
 ### Second Major Release Candidate
@@ -20,7 +26,7 @@ This release introduces significant improvements, new export formats, better per
 
 
 - **Progress indicator (`--progress`)**  
-  Lightweight live spinner showing row count and elapsed time during export.
+  Lightweight live spinner showing row count and elapsed time for long-running exports.
 
 - **New compression formats**  
   Added support for **ZSTD** and **LZ4** for fast high-ratio compression.
