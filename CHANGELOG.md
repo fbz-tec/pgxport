@@ -2,6 +2,9 @@
 
 All notable changes to pgxport will be documented in this file.
 
+## [v2.0.0] - 2025-01-05
+Stable release of pgxport v2.0.0. No changes since rc2. Recommended for production use.
+
 ## [v2.0.0-rc2] - 2025-12-08
 
 ### 🛠️ Fixes & Improvements
