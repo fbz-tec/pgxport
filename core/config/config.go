@@ -11,22 +11,20 @@ import (
 )
 
 const (
-	DefaultDBHost   = "localhost"
-	DefaultDBPort   = 5432
-	DefaultDBUser   = "postgres"
-	DefaultDBName   = "postgres"
-	DefaultDBDriver = "postgres"
+	DefaultDBHost = "localhost"
+	DefaultDBPort = 5432
+	DefaultDBUser = "postgres"
+	DefaultDBName = "postgres"
 )
 
 // Config holds database configuration settings.
 type Config struct {
-	DBDriver string
-	DBUser   string
-	DBPass   string
-	DBHost   string
-	DBPort   int
-	DBName   string
-	SSLMode  string
+	DBUser  string
+	DBPass  string
+	DBHost  string
+	DBPort  int
+	DBName  string
+	SSLMode string
 }
 
 // LoadConfig loads configuration from environment variables and .env file.
@@ -36,13 +34,12 @@ func LoadConfig() Config {
 	_ = godotenv.Load()
 
 	return Config{
-		DBDriver: getEnvOrDefault("DB_DRIVER", DefaultDBDriver),
-		DBUser:   getEnvOrDefault("DB_USER", DefaultDBUser),
-		DBPass:   os.Getenv("DB_PASS"),
-		DBHost:   getEnvOrDefault("DB_HOST", DefaultDBHost),
-		DBPort:   getEnvOrDefaultInt("DB_PORT", DefaultDBPort),
-		DBName:   getEnvOrDefault("DB_NAME", DefaultDBName),
-		SSLMode:  os.Getenv("DB_SSLMODE"),
+		DBUser:  getEnvOrDefault("DB_USER", DefaultDBUser),
+		DBPass:  os.Getenv("DB_PASS"),
+		DBHost:  getEnvOrDefault("DB_HOST", DefaultDBHost),
+		DBPort:  getEnvOrDefaultInt("DB_PORT", DefaultDBPort),
+		DBName:  getEnvOrDefault("DB_NAME", DefaultDBName),
+		SSLMode: os.Getenv("DB_SSLMODE"),
 	}
 }
 
@@ -78,7 +75,7 @@ func (c Config) GetConnectionString() string {
 		user = url.UserPassword(c.DBUser, c.DBPass)
 	}
 	u := &url.URL{
-		Scheme: c.DBDriver,
+		Scheme: "postgres",
 		User:   user,
 		Host:   fmt.Sprintf("%s:%d", c.DBHost, c.DBPort),
 		Path:   c.DBName,
