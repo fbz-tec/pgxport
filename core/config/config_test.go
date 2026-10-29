@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,20 +17,18 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "default values when no env vars set",
 			envVars: map[string]string{
-				"DB_USER":   "",
-				"DB_PASS":   "",
-				"DB_HOST":   "",
-				"DB_PORT":   "",
-				"DB_NAME":   "",
-				"DB_DRIVER": "",
+				"DB_USER": "",
+				"DB_PASS": "",
+				"DB_HOST": "",
+				"DB_PORT": "",
+				"DB_NAME": "",
 			},
 			expected: Config{
-				DBDriver: DefaultDBDriver,
-				DBUser:   DefaultDBUser,
-				DBPass:   "",
-				DBHost:   DefaultDBHost,
-				DBPort:   DefaultDBPort,
-				DBName:   DefaultDBName,
+				DBUser: DefaultDBUser,
+				DBPass: "",
+				DBHost: DefaultDBHost,
+				DBPort: DefaultDBPort,
+				DBName: DefaultDBName,
 			},
 		},
 		{
@@ -42,12 +41,11 @@ func TestLoadConfig(t *testing.T) {
 				"DB_NAME": "testdb",
 			},
 			expected: Config{
-				DBDriver: DefaultDBDriver,
-				DBUser:   "testuser",
-				DBPass:   "testpass",
-				DBHost:   "testhost",
-				DBPort:   5433,
-				DBName:   "testdb",
+				DBUser: "testuser",
+				DBPass: "testpass",
+				DBHost: "testhost",
+				DBPort: 5433,
+				DBName: "testdb",
 			},
 		},
 	}
@@ -66,9 +64,6 @@ func TestLoadConfig(t *testing.T) {
 
 			config := LoadConfig()
 
-			if config.DBDriver != tt.expected.DBDriver {
-				t.Errorf("DBDriver = %v, want %v", config.DBDriver, tt.expected.DBDriver)
-			}
 			if config.DBUser != tt.expected.DBUser {
 				t.Errorf("DBUser = %v, want %v", config.DBUser, tt.expected.DBUser)
 			}
@@ -98,24 +93,22 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid config",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid port - too high",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   99999,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 99999,
+				DBName: "testdb",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT must be a valid port number",
@@ -123,12 +116,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid port - zero",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   0,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 0,
+				DBName: "testdb",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT must be a valid port number",
@@ -136,12 +128,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "empty host",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			wantErr: true,
 			errMsg:  "DB_HOST cannot be empty",
@@ -149,12 +140,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "whitespace only host",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "   ",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "   ",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			wantErr: true,
 			errMsg:  "DB_HOST cannot be empty",
@@ -162,12 +152,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "empty database name",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "",
 			},
 			wantErr: true,
 			errMsg:  "DB_NAME cannot be empty",
@@ -175,12 +164,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "empty user",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			wantErr: true,
 			errMsg:  "DB_USER cannot be empty",
@@ -188,12 +176,11 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "empty password - should not error but warn",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			wantErr: false,
 		},
@@ -229,36 +216,33 @@ func TestGetConnectionString(t *testing.T) {
 		{
 			name: "basic connection string",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "pass",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "pass",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			expected: "postgres://user:pass@localhost:5432/testdb",
 		},
 		{
 			name: "connection string with special characters in password",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "admin",
-				DBPass:   "p@ss:word!",
-				DBHost:   "db.example.com",
-				DBPort:   5433,
-				DBName:   "production",
+				DBUser: "admin",
+				DBPass: "p@ss:word!",
+				DBHost: "db.example.com",
+				DBPort: 5433,
+				DBName: "production",
 			},
 			expected: "postgres://admin:p%40ss%3Aword%21@db.example.com:5433/production",
 		},
 		{
 			name: "connection string with empty password",
 			config: Config{
-				DBDriver: "postgres",
-				DBUser:   "user",
-				DBPass:   "",
-				DBHost:   "localhost",
-				DBPort:   5432,
-				DBName:   "testdb",
+				DBUser: "user",
+				DBPass: "",
+				DBHost: "localhost",
+				DBPort: 5432,
+				DBName: "testdb",
 			},
 			// No ":" before "@": an empty password would override PGPASSWORD and ~/.pgpass
 			expected: "postgres://user@localhost:5432/testdb",
@@ -279,7 +263,7 @@ func TestGetConnectionString(t *testing.T) {
 // from PGPASSWORD (as the README advises), and that DB_PASS still wins when set.
 func TestConnectionStringUsesPGPASSWORD(t *testing.T) {
 	t.Setenv("PGPASSWORD", "from-env")
-	cfg := Config{DBDriver: "postgres", DBUser: "user", DBHost: "localhost", DBPort: 5432, DBName: "testdb"}
+	cfg := Config{DBUser: "user", DBHost: "localhost", DBPort: 5432, DBName: "testdb"}
 
 	parsed, err := pgconn.ParseConfig(cfg.GetConnectionString())
 	if err != nil {
@@ -351,4 +335,13 @@ func stringContains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestDBDriverIsIgnored checks that a DB_DRIVER variable, often set for other tools,
+// no longer changes the connection URL (any value but postgres used to break it).
+func TestDBDriverIsIgnored(t *testing.T) {
+	t.Setenv("DB_DRIVER", "mysql")
+	if got := LoadConfig().GetConnectionString(); !strings.HasPrefix(got, "postgres://") {
+		t.Errorf("connection string = %q, want a postgres:// URL", got)
+	}
 }
