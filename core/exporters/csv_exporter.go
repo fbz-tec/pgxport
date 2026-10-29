@@ -153,7 +153,8 @@ func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOpt
 
 	defer output.Finish(writerCloser, &err)
 
-	copySql := fmt.Sprintf("COPY (%s) TO STDOUT WITH (FORMAT csv, HEADER %t, DELIMITER '%c')", query, !options.NoHeader, options.Delimiter)
+	// The newlines end a trailing -- comment before the closing parenthesis.
+	copySql := fmt.Sprintf("COPY (\n%s\n) TO STDOUT WITH (FORMAT csv, HEADER %t, DELIMITER '%c')", query, !options.NoHeader, options.Delimiter)
 
 	tag, err := conn.PgConn().CopyTo(context.Background(), writerCloser, copySql)
 	if err != nil {

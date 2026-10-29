@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fbz-tec/pgxport/core/validation"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -400,6 +401,59 @@ func TestWriteCSVByteaMatchesCopy(t *testing.T) {
 
 	if string(standard) != string(copied) {
 		t.Errorf("standard export differs from COPY:\nstandard: %q\ncopy:     %q", standard, copied)
+	}
+}
+
+// TestCopyModeAcceptsSameQueriesAsStandard runs the same chain as the CLI
+// (ValidateQuery, TrimTerminator, export) and checks that COPY mode accepts
+// a final ';' and trailing comments, and writes the same CSV as standard mode.
+func TestCopyModeAcceptsSameQueriesAsStandard(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	queries := []string{
+		"SELECT 1 AS n;",
+		"SELECT 1 AS n;\n",
+		"SELECT 1 AS n -- note",
+		"SELECT 1 AS n -- monthly report\n",
+		"SELECT 1 AS n; -- end of report\n",
+		"SELECT ';' AS s; /* trailing */",
+	}
+	exporter, err := Get(FormatCSV)
+	if err != nil {
+		t.Fatalf("Failed to get csv exporter: %v", err)
+	}
+
+	for _, raw := range queries {
+		t.Run(raw, func(t *testing.T) {
+			if err := validation.ValidateQuery(raw); err != nil {
+				t.Fatalf("ValidateQuery() error: %v", err)
+			}
+			query := validation.TrimTerminator(raw)
+			options := ExportOptions{Format: FormatCSV, Compression: "none", Delimiter: ','}
+
+			rows, err := conn.Query(context.Background(), query)
+			if err != nil {
+				t.Fatalf("Failed to execute query: %v", err)
+			}
+			options.OutputPath = filepath.Join(t.TempDir(), "standard.csv")
+			_, err = exporter.Export(rows, options)
+			rows.Close()
+			if err != nil {
+				t.Fatalf("Export() error: %v", err)
+			}
+			standard, _ := os.ReadFile(options.OutputPath)
+
+			options.OutputPath = filepath.Join(t.TempDir(), "copy.csv")
+			if _, err := exporter.(CopyCapable).ExportCopy(conn, query, options); err != nil {
+				t.Fatalf("ExportCopy() error: %v", err)
+			}
+			copied, _ := os.ReadFile(options.OutputPath)
+
+			if string(standard) != string(copied) {
+				t.Errorf("COPY output differs:\nstandard: %q\ncopy:     %q", standard, copied)
+			}
+		})
 	}
 }
 

@@ -27,6 +27,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
   The previous keyword-based check could be bypassed by queries that look read-only but write data: `SELECT my_function()` deleting rows, `SELECT setval(...)`, or a `DELETE` inside a CTE. PostgreSQL now refuses any data change, in standard and `--with-copy` modes. Admin functions that do not write data and `dblink` are not covered: use a SELECT-only database user for full protection (see README, Security).
 - **Valid read-only queries are no longer rejected.**
   The keyword check refused queries such as `SELECT $$please delete me$$` or a column named `copy`. The query check now only rejects empty queries, multiple statements, and statements that do not start with `SELECT` or `WITH`.
+- **`--with-copy` accepts the same queries as the standard mode.**
+  COPY mode failed with a syntax error on queries ending with `;` (most `.sql` files) and on queries ending with a `--` comment. The final `;` is now removed before the query is run, in both modes.
+- **A comment after the final `;` is no longer rejected.**
+  `SELECT ...; -- end of report` was refused as "multiple statements". A real second statement after the comment is still refused.
 
 ### ⚠️ Behavior changes
 
