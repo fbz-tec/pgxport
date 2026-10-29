@@ -541,7 +541,7 @@ func TestFormatSQLValue(t *testing.T) {
 			name:      "text array with injection attempt",
 			value:     []interface{}{"x'); DROP TABLE users; --"},
 			valueType: pgtype.TextArrayOID,
-			expected:  `'{x''); DROP TABLE users; --}'`, // every ' is still doubled: no way out of the literal
+			expected:  `'{"x''); DROP TABLE users; --"}'`, // quoted like PostgreSQL does; every ' is still doubled
 		},
 		{
 			name:      "text array with comma, quote, backslash and NULL",
