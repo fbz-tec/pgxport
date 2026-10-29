@@ -52,6 +52,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 ### 🧹 Internal
 
 - CSV and XML exports share a single value formatter (`FormatTextValue`) instead of two near-identical copies that had to be fixed twice. The unused `formatValue` function and its tests are removed. No change in output.
+- The CSV "slow row streaming" warning and the `avg fetch` figure of the verbose log are removed. The fetch time was measured after the row had arrived, so it was always 0 and the warning never fired; its `--with-copy` advice would also not help when the query itself is slow.
 
 ### ⚠️ Behavior changes
 
