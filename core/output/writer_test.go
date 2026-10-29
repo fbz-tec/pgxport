@@ -538,10 +538,22 @@ func TestDetermineZipEntryName(t *testing.T) {
 			expected:   "output.csv",
 		},
 		{
-			name:       "uppercase ZIP extension",
+			name:       "uppercase ZIP extension keeps the name's case",
 			outputPath: "/path/to/DATA.ZIP",
 			format:     "json",
-			expected:   "data.json",
+			expected:   "DATA.json",
+		},
+		{
+			name:       "mixed case name is kept",
+			outputPath: "/path/to/Report_Q1.zip",
+			format:     "csv",
+			expected:   "Report_Q1.csv",
+		},
+		{
+			name:       "uppercase format extension is not added twice",
+			outputPath: "/path/to/Ventes 2024.CSV.zip",
+			format:     "csv",
+			expected:   "Ventes 2024.CSV",
 		},
 		{
 			name:       "empty filename defaults to export",
