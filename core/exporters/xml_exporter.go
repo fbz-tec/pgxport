@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"time"
+	"unicode"
 
 	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
@@ -42,11 +43,11 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 
 	logger.Debug("XML header written")
 
-	// get fields names
+	// get fields names, made valid as XML element names (e.g. "?column?" for SELECT 1+1)
 	fields := rows.FieldDescriptions()
 	keys := make([]string, len(fields))
 	for i, fd := range fields {
-		keys[i] = string(fd.Name)
+		keys[i] = xmlName(fd.Name)
 	}
 
 	startResults := xml.StartElement{Name: xml.Name{Local: options.XmlRootElement}}
@@ -123,6 +124,36 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 	sp.Stop("Completed!")
 
 	return rowCount, nil
+}
+
+// xmlName turns a column name into a valid XML element name: characters not allowed
+// in a name become '_', and a name that cannot start an element gets a '_' prefix.
+// Valid names are returned unchanged.
+func xmlName(name string) string {
+	runes := []rune(name)
+	for i, r := range runes {
+		if !isXMLNameRune(r, false) {
+			runes[i] = '_'
+		}
+	}
+	if len(runes) == 0 || !isXMLNameRune(runes[0], true) {
+		return "_" + string(runes)
+	}
+	return string(runes)
+}
+
+// ValidXMLName reports whether name can be used as an XML element name as is.
+func ValidXMLName(name string) bool {
+	return name != "" && xmlName(name) == name
+}
+
+// isXMLNameRune is a simplified XML Name rule: letters and '_' anywhere,
+// digits, '-' and '.' after the first character. ':' is left out (XML namespaces).
+func isXMLNameRune(r rune, first bool) bool {
+	if unicode.IsLetter(r) || r == '_' {
+		return true
+	}
+	return !first && (unicode.IsDigit(r) || r == '-' || r == '.')
 }
 
 func init() {

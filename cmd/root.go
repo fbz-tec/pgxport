@@ -376,6 +376,14 @@ func validateExportParams() error {
 		return fmt.Errorf("error: --insert-batch must be at least 1")
 	}
 
+	if format == "xml" {
+		for flag, tag := range map[string]string{"--xml-root-tag": xmlRootElement, "--xml-row-tag": xmlRowElement} {
+			if !exporters.ValidXMLName(tag) {
+				return fmt.Errorf("error: invalid %s %q: XML element names must start with a letter or '_' and contain only letters, digits, '_', '-' or '.'", flag, tag)
+			}
+		}
+	}
+
 	if format == "template" {
 		hasFull := templateFile != ""
 		hasStreaming := templateRow != "" || templateHeader != "" || templateFooter != ""

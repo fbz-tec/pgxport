@@ -271,9 +271,11 @@ func TestValidateExportParams(t *testing.T) {
 	originalTableName := tableName
 	originalTimeFormat := timeFormat
 	originalTimeZone := timeZone
+	originalXmlRoot, originalXmlRow := xmlRootElement, xmlRowElement
 
 	// Restore original values after test
 	defer func() {
+		xmlRootElement, xmlRowElement = originalXmlRoot, originalXmlRow
 		sqlQuery = originalSqlQuery
 		sqlFile = originalSqlFile
 		format = originalFormat
@@ -325,8 +327,40 @@ func TestValidateExportParams(t *testing.T) {
 				tableName = ""
 				timeFormat = ""
 				timeZone = ""
+				xmlRootElement = "results"
+				xmlRowElement = "row"
 			},
 			wantErr: false,
+		},
+		{
+			name: "invalid XML row tag with a space",
+			setupFunc: func() {
+				sqlQuery = "SELECT * FROM users"
+				sqlFile = ""
+				format = "xml"
+				compression = "none"
+				timeFormat = ""
+				timeZone = ""
+				xmlRootElement = "results"
+				xmlRowElement = "my row"
+			},
+			wantErr:     true,
+			errContains: "--xml-row-tag",
+		},
+		{
+			name: "invalid XML root tag starting with a digit",
+			setupFunc: func() {
+				sqlQuery = "SELECT * FROM users"
+				sqlFile = ""
+				format = "xml"
+				compression = "none"
+				timeFormat = ""
+				timeZone = ""
+				xmlRootElement = "1results"
+				xmlRowElement = "row"
+			},
+			wantErr:     true,
+			errContains: "--xml-root-tag",
 		},
 		{
 			name: "valid SQL format with table name",
