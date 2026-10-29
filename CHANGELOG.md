@@ -19,6 +19,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
   The last buffered bytes and the compression trailer (gzip, zstd, lz4, zip index) are written when the file is closed. A failure at that point (disk full, network share) was silently ignored: the CLI printed `Export completed` and exited with code 0, leaving an empty, truncated or corrupt file. The export now fails with an error.
 - **XML export: JSON, arrays and values starting with `{` or `[` stay inside their element.**
   These values were written outside their element and without escaping, so a single `&` or `<` made the whole document invalid.
+- **`bytea` values are exported in hex format in all formats.**
+  Binary data was written as raw bytes: SQL exports could not be reloaded (NUL bytes, backslashes) and JSON replaced invalid bytes with `�`. `bytea` and `bytea[]` values are now written as `\x0041ff`, the same as `--with-copy`.
+- **SQL export: timestamps keep their microseconds and their exact time.**
+  `timestamp` and `timestamptz` were truncated to milliseconds, and `timestamptz` lost the minutes of its UTC offset: exported on a machine in a half-hour time zone (India `+05:30`, Newfoundland, Adelaide…), every value was reloaded 30 minutes off. `timestamptz` values are now written in UTC with a full offset (`2024-01-15 10:30:00.123456+00:00`), and timestamps inside arrays use the same format.
 
 ### ⚠️ Behavior changes
 
@@ -26,6 +30,8 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - `numeric` columns look different in exported files: exact values, trailing zeros kept, no scientific notation.
 - `numeric` cells in XLSX remain Excel numbers (Excel stores numbers as 64-bit floats).
 - In XML, JSON values are now escaped like any other text (`&#34;` instead of `"`). XML readers return the original JSON.
+- `bytea` columns are exported as `\x` + hex in every format. Text stored in a `bytea` column now appears as `\x48656c6c6f` instead of `Hello`.
+- In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
 
 ## [v2.0.0] - 2025-01-05
 Stable release of pgxport v2.0.0. No changes since rc2. Recommended for production use.
