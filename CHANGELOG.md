@@ -2,9 +2,9 @@
 
 All notable changes to pgxport will be documented in this file.
 
-## [v2.0.1] - 2026-10-29
+## [v2.1.0] - 2026-10-29
 
-Bug-fix release focused on data correctness: exported files now always contain exactly the data stored in PostgreSQL, or the export fails with an error.
+Release focused on data correctness: exported files now always contain exactly the data stored in PostgreSQL, or the export fails with an error. Some outputs change as a result; see **Behavior changes** before upgrading.
 
 ### 🛠️ Fixes & Improvements
 
