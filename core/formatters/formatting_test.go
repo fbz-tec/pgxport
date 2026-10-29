@@ -274,12 +274,12 @@ func TestFormatValueByOID(t *testing.T) {
 			expected:  "9f4daf39-5b76-4b9c-a147-820f8f0c945f",
 		},
 		{
-			name:      "Bytea to string",
-			val:       []byte("test data"),
+			name:      "Bytea to hex",
+			val:       []byte{0x00, 'A', '\\', 0xff},
 			valueType: pgtype.ByteaOID,
 			timefmt:   "",
 			timezone:  "",
-			expected:  "test data",
+			expected:  `\x00415cff`,
 		},
 		{
 			name:      "Valid Numeric",
@@ -538,10 +538,22 @@ func TestFormatSQLValue(t *testing.T) {
 			expected:  "'2024-03-15 14:30:45.123'::timestamp",
 		},
 		{
+			name:      "Timestamp keeps microseconds",
+			value:     time.Date(2024, 3, 15, 14, 30, 45, 123456000, time.UTC),
+			valueType: pgtype.TimestampOID,
+			expected:  "'2024-03-15 14:30:45.123456'::timestamp",
+		},
+		{
 			name:      "Timestamptz with cast",
 			value:     testTimestamp,
 			valueType: pgtype.TimestamptzOID,
-			expected:  "'2024-03-15 14:30:45.123+00'::timestamptz",
+			expected:  "'2024-03-15 14:30:45.123+00:00'::timestamptz",
+		},
+		{
+			name:      "Timestamptz in half-hour zone is written in UTC",
+			value:     time.Date(2024, 3, 15, 16, 0, 0, 123456000, time.FixedZone("IST", 5*3600+30*60)),
+			valueType: pgtype.TimestamptzOID,
+			expected:  "'2024-03-15 10:30:00.123456+00:00'::timestamptz",
 		},
 		{
 			name:      "UUID with cast",
@@ -569,15 +581,15 @@ func TestFormatSQLValue(t *testing.T) {
 		},
 		{
 			name:      "bytea value with cast",
-			value:     []byte("binary data"),
+			value:     []byte("Hi"),
 			valueType: pgtype.ByteaOID,
-			expected:  "'binary data'::bytea",
+			expected:  `'\x4869'::bytea`,
 		},
 		{
-			name:      "bytea with quotes",
-			value:     []byte("O'Connor"),
+			name:      "bytea with NUL, quote, backslash and invalid UTF-8",
+			value:     []byte{0x00, '\'', '\\', 0xff},
 			valueType: pgtype.ByteaOID,
-			expected:  "'O''Connor'::bytea",
+			expected:  `'\x00275cff'::bytea`,
 		},
 		{
 			name:      "bool true",

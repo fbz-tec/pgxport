@@ -368,6 +368,41 @@ func TestWriteCSVDataTypes(t *testing.T) {
 	}
 }
 
+// TestWriteCSVByteaMatchesCopy checks that bytea is written in hex like PostgreSQL COPY,
+// so the same export gives the same file with or without --with-copy.
+func TestWriteCSVByteaMatchesCopy(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	query := "SELECT decode('00415c27ff', 'hex') AS b, decode('', 'hex') AS empty"
+	options := ExportOptions{Format: FormatCSV, Compression: "none", Delimiter: ','}
+	exporter, err := Get(FormatCSV)
+	if err != nil {
+		t.Fatalf("Failed to get csv exporter: %v", err)
+	}
+
+	rows, err := conn.Query(context.Background(), query)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	options.OutputPath = filepath.Join(t.TempDir(), "standard.csv")
+	if _, err := exporter.Export(rows, options); err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+	rows.Close()
+	standard, _ := os.ReadFile(options.OutputPath)
+
+	options.OutputPath = filepath.Join(t.TempDir(), "copy.csv")
+	if _, err := exporter.(CopyCapable).ExportCopy(conn, query, options); err != nil {
+		t.Fatalf("ExportCopy() error: %v", err)
+	}
+	copied, _ := os.ReadFile(options.OutputPath)
+
+	if string(standard) != string(copied) {
+		t.Errorf("standard export differs from COPY:\nstandard: %q\ncopy:     %q", standard, copied)
+	}
+}
+
 func TestWriteCopyCSV(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()

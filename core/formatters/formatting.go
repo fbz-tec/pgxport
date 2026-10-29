@@ -22,6 +22,12 @@ func (d Decimal) MarshalYAML() (interface{}, error) {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: string(d)}, nil
 }
 
+// byteaHex returns binary data in PostgreSQL's hex format (\x0041ff), the same as COPY.
+// Raw bytes would put NUL and invalid UTF-8 into text files.
+func byteaHex(b []byte) string {
+	return fmt.Sprintf(`\x%x`, b)
+}
+
 // numericValue returns a NUMERIC as Decimal, as a plain string for NaN and ±Infinity
 // (JSON has no such numbers), or nil for NULL.
 func numericValue(num pgtype.Numeric) interface{} {
@@ -101,7 +107,7 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 
 	case pgtype.ByteaOID:
 		if bytes, ok := val.([]byte); ok {
-			return string(bytes)
+			return byteaHex(bytes)
 		}
 
 	case pgtype.NumericOID:
@@ -109,13 +115,16 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 			return numericValue(num)
 		}
 
-	case pgtype.NumericArrayOID:
+	case pgtype.NumericArrayOID, pgtype.ByteaArrayOID:
 		if arr, ok := val.([]interface{}); ok {
 			out := make([]interface{}, len(arr))
 			for i, elem := range arr {
-				if num, ok := elem.(pgtype.Numeric); ok {
-					out[i] = numericValue(num)
-				} else {
+				switch e := elem.(type) {
+				case pgtype.Numeric:
+					out[i] = numericValue(e)
+				case []byte:
+					out[i] = byteaHex(e)
+				default:
 					out[i] = elem
 				}
 			}
@@ -256,12 +265,14 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 
 	case pgtype.TimestampOID:
 		if t, ok := val.(time.Time); ok {
-			return fmt.Sprintf("'%s'::timestamp", t.Format("2006-01-02 15:04:05.000"))
+			return fmt.Sprintf("'%s'::timestamp", t.Format("2006-01-02 15:04:05.999999"))
 		}
 
 	case pgtype.TimestamptzOID:
+		// Written in UTC: the file no longer depends on the exporting machine's time zone,
+		// and a full +00:00 offset avoids losing half-hour offsets such as +05:30.
 		if t, ok := val.(time.Time); ok {
-			return fmt.Sprintf("'%s'::timestamptz", t.Format("2006-01-02 15:04:05.000-07"))
+			return fmt.Sprintf("'%s'::timestamptz", t.UTC().Format("2006-01-02 15:04:05.999999-07:00"))
 		}
 
 	case pgtype.UUIDOID:
@@ -271,8 +282,7 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 
 	case pgtype.ByteaOID:
 		if bytes, ok := val.([]byte); ok {
-			escaped := strings.ReplaceAll(string(bytes), "'", "''")
-			return fmt.Sprintf("'%s'::bytea", escaped)
+			return fmt.Sprintf("'%s'::bytea", byteaHex(bytes))
 		}
 
 	case pgtype.BoolOID:
@@ -350,8 +360,14 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 // sqlArrayElem formats one element of a PostgreSQL array literal.
 // Non-numeric elements are double-quoted so commas, braces, quotes and spaces stay inside the element.
 func sqlArrayElem(elem interface{}) string {
-	if num, ok := elem.(pgtype.Numeric); ok {
-		elem = numericValue(num)
+	switch e := elem.(type) {
+	case pgtype.Numeric:
+		elem = numericValue(e)
+	case []byte:
+		elem = byteaHex(e)
+	case time.Time:
+		// PostgreSQL ignores the offset for timestamp[] elements, so one format fits timestamp[] and timestamptz[].
+		elem = e.UTC().Format("2006-01-02 15:04:05.999999-07:00")
 	}
 	switch elem.(type) {
 	case nil:

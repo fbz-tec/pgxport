@@ -512,7 +512,24 @@ func TestWriteSQLRoundTrip(t *testing.T) {
 			query: `SELECT 12345678901234567.89::numeric AS big, 1234.50::numeric(10,2) AS scaled,
 		'NaN'::numeric AS nan, '-Infinity'::numeric AS inf, ARRAY[1.50, 'NaN', NULL]::numeric[] AS arr`,
 		},
+		{
+			name:    "bytea and timestamps with microseconds",
+			columns: "b bytea, b0 bytea, ba bytea[], ts timestamp, tz timestamptz, tsa timestamp[], tza timestamptz[]",
+			query: `SELECT decode('00415c27ff', 'hex') AS b, decode('', 'hex') AS b0,
+		ARRAY[decode('00', 'hex'), decode('5c22', 'hex'), NULL] AS ba,
+		'2024-01-15 10:30:00.123456'::timestamp AS ts, '2024-01-15 10:30:00.123456+00'::timestamptz AS tz,
+		ARRAY['2024-01-15 10:30:00.123456'::timestamp] AS tsa, ARRAY['2024-01-15 10:30:00.123456+00'::timestamptz] AS tza`,
+		},
 	}
+
+	// pgx returns timestamptz in the local zone: a half-hour offset used to shift times by 30 minutes.
+	kolkata, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Fatalf("Failed to load time zone: %v", err)
+	}
+	oldLocal := time.Local
+	time.Local = kolkata
+	t.Cleanup(func() { time.Local = oldLocal })
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
