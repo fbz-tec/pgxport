@@ -9,17 +9,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// TestNewStore verifies that NewStore returns a non-nil Store instance
+// TestNewStore verifies that NewPgStore returns a non-nil store
 func TestNewStore(t *testing.T) {
 	store := NewPgStore("")
 	if store == nil {
-		t.Error("NewStore() returned nil, expected non-nil Store instance")
+		t.Error("NewPgStore() returned nil, expected non-nil store")
 	}
-}
-
-// TestStoreInterface verifies that dbStore implements Store interface
-func TestStoreInterface(t *testing.T) {
-	var _ Store = &PgStore{}
 }
 
 // TestOpenInvalidURL tests connection with invalid database URLs
