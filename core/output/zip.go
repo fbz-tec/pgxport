@@ -12,16 +12,16 @@ import (
 	"github.com/fbz-tec/pgxport/internal/logger"
 )
 
-func newZipWriter(path, format string) (io.WriteCloser, error) {
+// newZipWriter creates the archive at path (already ending in .zip, see FinalPath)
+// with a single file named entryName inside.
+func newZipWriter(path, entryName string) (io.WriteCloser, error) {
 	start := time.Now()
-	fixedPath := fixExtension(path, ".zip")
-	logger.Debug("Creating zip-compressed output file: %s", fixedPath)
-	file, err := os.Create(fixedPath)
+	logger.Debug("Creating zip-compressed output file: %s", path)
+	file, err := os.Create(path)
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}
 	zipWriter := zip.NewWriter(file)
-	entryName := determineZipEntryName(path, format)
 	logger.Debug("Creating zip entry: %s", entryName)
 	entryWriter, err := zipWriter.Create(entryName)
 	if err != nil {
@@ -30,10 +30,10 @@ func newZipWriter(path, format string) (io.WriteCloser, error) {
 		return nil, fmt.Errorf("error creating zip entry: %w", err)
 	}
 	return &compositeWriteCloser{
-		path:   fixedPath,
+		path:   path,
 		Writer: entryWriter,
 		closeFunc: func() error {
-			logger.Debug("Finalizing zip archive: %s", fixedPath)
+			logger.Debug("Finalizing zip archive: %s", path)
 			var err error
 			if cerr := zipWriter.Close(); cerr != nil {
 				err = cerr

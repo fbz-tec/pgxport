@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/fbz-tec/pgxport/internal/logger"
@@ -13,9 +12,6 @@ import (
 
 func newZstdWriter(path string) (io.WriteCloser, error) {
 	start := time.Now()
-	if !strings.HasSuffix(strings.ToLower(path), ".zst") {
-		path += ".zst"
-	}
 	logger.Debug("Creating Zstandard-compressed output file: %s", path)
 	file, err := os.Create(path)
 	if err != nil {

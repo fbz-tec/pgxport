@@ -775,6 +775,44 @@ func TestCreateOutputWriter_FilePermissions(t *testing.T) {
 	}
 }
 
+// TestFinalPath checks the name FinalPath reports (used in the CLI messages) and that it is
+// exactly the file CreateWriter writes, for every compression.
+func TestFinalPath(t *testing.T) {
+	tests := []struct {
+		path, compression, want string
+	}{
+		{"users.csv", "none", "users.csv"},
+		{"users.csv", "gzip", "users.csv.gz"},
+		{"users.csv.gz", "gzip", "users.csv.gz"},
+		{"users.csv", "zstd", "users.csv.zst"},
+		{"users.csv", "lz4", "users.csv.lz4"},
+		{"users.csv", "zip", "users.zip"},
+		{"out.zip", "zip", "out.zip"},
+		{"users.csv", " GZIP ", "users.csv.gz"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path+"/"+tt.compression, func(t *testing.T) {
+			if got := FinalPath(tt.path, tt.compression); got != tt.want {
+				t.Fatalf("FinalPath(%q, %q) = %q, want %q", tt.path, tt.compression, got, tt.want)
+			}
+
+			dir := t.TempDir()
+			w, err := CreateWriter(OutputConfig{Path: filepath.Join(dir, tt.path), Compression: tt.compression, Format: "csv"})
+			if err != nil {
+				t.Fatalf("CreateWriter() error = %v", err)
+			}
+			w.Write([]byte("a\n"))
+			if err := w.Close(); err != nil {
+				t.Fatalf("Close() error = %v", err)
+			}
+			entries, _ := os.ReadDir(dir)
+			if len(entries) != 1 || entries[0].Name() != tt.want {
+				t.Errorf("files written = %v, want only %s", entries, tt.want)
+			}
+		})
+	}
+}
+
 func TestFixExtension(t *testing.T) {
 	tests := []struct {
 		name  string
