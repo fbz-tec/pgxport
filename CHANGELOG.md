@@ -23,6 +23,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
   Binary data was written as raw bytes: SQL exports could not be reloaded (NUL bytes, backslashes) and JSON replaced invalid bytes with `�`. `bytea` and `bytea[]` values are now written as `\x0041ff`, the same as `--with-copy`.
 - **SQL export: timestamps keep their microseconds and their exact time.**
   `timestamp` and `timestamptz` were truncated to milliseconds, and `timestamptz` lost the minutes of its UTC offset: exported on a machine in a half-hour time zone (India `+05:30`, Newfoundland, Adelaide…), every value was reloaded 30 minutes off. `timestamptz` values are now written in UTC with a full offset (`2024-01-15 10:30:00.123456+00:00`), and timestamps inside arrays use the same format.
+- **Queries now run in a `READ ONLY` transaction enforced by PostgreSQL.**
+  The previous keyword-based check could be bypassed by queries that look read-only but write data: `SELECT my_function()` deleting rows, `SELECT setval(...)`, or a `DELETE` inside a CTE. PostgreSQL now refuses any data change, in standard and `--with-copy` modes. Admin functions that do not write data and `dblink` are not covered: use a SELECT-only database user for full protection (see README, Security).
+- **Valid read-only queries are no longer rejected.**
+  The keyword check refused queries such as `SELECT $$please delete me$$` or a column named `copy`. The query check now only rejects empty queries, multiple statements, and statements that do not start with `SELECT` or `WITH`.
 
 ### ⚠️ Behavior changes
 
@@ -32,6 +36,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - In XML, JSON values are now escaped like any other text (`&#34;` instead of `"`). XML readers return the original JSON.
 - `bytea` columns are exported as `\x` + hex in every format. Text stored in a `bytea` column now appears as `\x48656c6c6f` instead of `Hello`.
 - In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
+- A query that writes data now fails at execution with a PostgreSQL error (`cannot execute ... in a read-only transaction`) instead of being exported. Non-`SELECT`/`WITH` statements are reported as `unsupported SQL command` instead of `forbidden SQL command detected`.
 
 ## [v2.0.0] - 2025-01-05
 Stable release of pgxport v2.0.0. No changes since rc2. Recommended for production use.

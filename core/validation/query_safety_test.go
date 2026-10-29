@@ -219,17 +219,37 @@ func TestValidateQuery(t *testing.T) {
 		},
 
 		// ========== CTE and Subquery Attacks ==========
+		// Writes hidden inside SELECT/WITH pass this text check on purpose: PostgreSQL refuses
+		// them in the read-only transaction (see TestReadOnlyTransaction in core/db).
 		{
-			name:    "forbidden command in CTE",
+			name:    "DELETE in CTE is left to the read-only transaction",
 			query:   "WITH bad AS (DELETE FROM users RETURNING *) SELECT * FROM bad",
-			wantErr: true,
-			errMsg:  "DELETE",
+			wantErr: false,
 		},
 		{
-			name:    "forbidden command in subquery",
+			name:    "DELETE in subquery is left to the read-only transaction",
 			query:   "SELECT * FROM (DELETE FROM users RETURNING *) AS sub",
-			wantErr: true,
-			errMsg:  "DELETE",
+			wantErr: false,
+		},
+		{
+			name:    "dollar-quoted string containing a keyword",
+			query:   "SELECT $$please delete me$$ AS note",
+			wantErr: false,
+		},
+		{
+			name:    "column named like a command",
+			query:   "SELECT copy, merge FROM t",
+			wantErr: false,
+		},
+		{
+			name:    "parenthesized SELECT",
+			query:   "(SELECT 1) UNION (SELECT 2)",
+			wantErr: false,
+		},
+		{
+			name:    "leading comment before SELECT",
+			query:   "-- monthly report\nSELECT 1",
+			wantErr: false,
 		},
 		{
 			name:    "valid CTE with SELECT",
@@ -307,10 +327,9 @@ func TestValidateQuery(t *testing.T) {
 			errMsg:  "only a single SQL statement",
 		},
 		{
-			name:    "attack: WITH containing DELETE",
+			name:    "attack: WITH containing DELETE is left to the read-only transaction",
 			query:   "WITH malicious AS (DELETE FROM users RETURNING id) SELECT * FROM malicious",
-			wantErr: true,
-			errMsg:  "DELETE",
+			wantErr: false,
 		},
 	}
 

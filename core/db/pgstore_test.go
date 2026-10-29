@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"io"
 	"os"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // TestNewStore verifies that NewStore returns a non-nil Store instance
@@ -364,6 +367,81 @@ func TestConnectionReuse(t *testing.T) {
 		if result == nil {
 			t.Errorf("Query %d returned nil", i+1)
 		}
+	}
+}
+
+// TestReadOnlyTransaction checks that PostgreSQL refuses writes hidden in queries
+// that look read-only, and that normal SELECT and COPY TO still work.
+func TestReadOnlyTransaction(t *testing.T) {
+	testURL := getTestDatabaseURL()
+	if testURL == "" {
+		t.Skip("Skipping integration test: DB_TEST_URL not set")
+	}
+
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, testURL)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer admin.Close(ctx)
+
+	_, err = admin.Exec(ctx, `
+		CREATE TABLE ro_invoices (id int);
+		INSERT INTO ro_invoices SELECT generate_series(1, 5);
+		CREATE SEQUENCE ro_seq;
+		CREATE FUNCTION ro_purge() RETURNS int LANGUAGE sql AS $$ DELETE FROM ro_invoices RETURNING 1; SELECT 0 $$;`)
+	if err != nil {
+		t.Fatalf("Failed to set up fixtures: %v", err)
+	}
+	// defer, not t.Cleanup: it must run before admin.Close
+	defer admin.Exec(ctx, "DROP FUNCTION ro_purge(); DROP SEQUENCE ro_seq; DROP TABLE ro_invoices")
+
+	writes := map[string]string{
+		"function that deletes": "SELECT ro_purge()",
+		"DELETE in CTE":         "WITH d AS (DELETE FROM ro_invoices RETURNING id) SELECT * FROM d",
+		"setval":                "SELECT setval('ro_seq', 1000)",
+		"plain DELETE":          "DELETE FROM ro_invoices",
+	}
+	for name, query := range writes {
+		t.Run(name, func(t *testing.T) {
+			store := NewPgStore(testURL)
+			if err := store.Connect(); err != nil {
+				t.Fatalf("Connect() error: %v", err)
+			}
+			defer store.Close()
+
+			rows, err := store.Query(ctx, query)
+			if err == nil {
+				for rows.Next() {
+				}
+				err = rows.Err()
+				rows.Close()
+			}
+			if err == nil {
+				t.Errorf("write was not refused: %s", query)
+			}
+		})
+	}
+
+	var count, last int64
+	if err := admin.QueryRow(ctx, "SELECT (SELECT count(*) FROM ro_invoices), (SELECT last_value FROM ro_seq)").Scan(&count, &last); err != nil {
+		t.Fatalf("Failed to check data: %v", err)
+	}
+	if count != 5 || last != 1 {
+		t.Errorf("data was modified: %d rows (want 5), sequence at %d (want 1)", count, last)
+	}
+
+	store := NewPgStore(testURL)
+	if err := store.Connect(); err != nil {
+		t.Fatalf("Connect() error: %v", err)
+	}
+	defer store.Close()
+	var n int64
+	if err := store.Conn().QueryRow(ctx, "SELECT count(*) FROM ro_invoices").Scan(&n); err != nil || n != 5 {
+		t.Errorf("read-only SELECT failed: n=%d err=%v", n, err)
+	}
+	if _, err := store.Conn().PgConn().CopyTo(ctx, io.Discard, "COPY (SELECT * FROM ro_invoices) TO STDOUT"); err != nil {
+		t.Errorf("COPY TO STDOUT should work in a read-only transaction: %v", err)
 	}
 }
 

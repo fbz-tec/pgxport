@@ -48,6 +48,16 @@ func (s *PgStore) Connect() error {
 	}
 
 	logger.Debug("Database ping successful")
+
+	// Everything pgxport runs on this connection is read-only, enforced by PostgreSQL:
+	// writes hidden in functions, CTEs or setval() fail too. The transaction ends when
+	// the connection is closed. A BEGIN works through PgBouncer, unlike a startup parameter.
+	if _, err := conn.Exec(ctx, "BEGIN READ ONLY"); err != nil {
+		conn.Close(ctx)
+		return fmt.Errorf("unable to start read-only transaction: %w", err)
+	}
+	logger.Debug("Read-only transaction started")
+
 	s.conn = conn
 	return nil
 }
