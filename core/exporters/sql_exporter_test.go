@@ -489,6 +489,60 @@ func TestWriteSQLEscaping(t *testing.T) {
 	}
 }
 
+// TestWriteSQLRoundTrip runs the generated INSERT back into PostgreSQL
+// and checks that tricky JSON and array values come back unchanged.
+func TestWriteSQLRoundTrip(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	query := `SELECT '{"name":"O''Brien"}'::jsonb AS meta,
+		ARRAY['a,b', 'say "hi"', 'C:\dir', NULL, 'x''); DROP TABLE users; --']::text[] AS tags`
+
+	if _, err := conn.Exec(ctx, "CREATE TEMP TABLE roundtrip (meta jsonb, tags text[])"); err != nil {
+		t.Fatalf("Failed to create temp table: %v", err)
+	}
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "roundtrip.sql")
+	exporter, err := Get(FormatSQL)
+	if err != nil {
+		t.Fatalf("Failed to get sql exporter: %v", err)
+	}
+	options := ExportOptions{
+		Format:          FormatSQL,
+		TableName:       "roundtrip",
+		Compression:     "none",
+		RowPerStatement: 1,
+		OutputPath:      outputPath,
+	}
+	if _, err := exporter.Export(rows, options); err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if _, err := conn.Exec(ctx, string(content)); err != nil {
+		t.Fatalf("Generated SQL failed to run: %v\n%s", err, content)
+	}
+
+	var same bool
+	err = conn.QueryRow(ctx, "SELECT (r.meta, r.tags) IS NOT DISTINCT FROM (q.meta, q.tags) FROM roundtrip r, ("+query+") q").Scan(&same)
+	if err != nil {
+		t.Fatalf("Failed to compare rows: %v", err)
+	}
+	if !same {
+		t.Errorf("Reloaded row differs from source. Generated SQL:\n%s", content)
+	}
+}
+
 func TestWriteSQLLargeDataset(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping large dataset test in short mode")

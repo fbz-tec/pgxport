@@ -637,6 +637,30 @@ func TestFormatSQLValue(t *testing.T) {
 			valueType: pgtype.Int4ArrayOID,
 			expected:  "'{}'",
 		},
+		{
+			name:      "jsonb with single quote",
+			value:     map[string]interface{}{"name": "O'Brien"},
+			valueType: pgtype.JSONBOID,
+			expected:  `'{"name":"O''Brien"}'::jsonb`,
+		},
+		{
+			name:      "json with single quote",
+			value:     map[string]interface{}{"name": "O'Brien"},
+			valueType: pgtype.JSONOID,
+			expected:  `'{"name":"O''Brien"}'::json`,
+		},
+		{
+			name:      "text array with injection attempt",
+			value:     []interface{}{"x'); DROP TABLE users; --"},
+			valueType: pgtype.TextArrayOID,
+			expected:  `'{"x''); DROP TABLE users; --"}'`,
+		},
+		{
+			name:      "text array with comma, quote, backslash and NULL",
+			value:     []interface{}{"a,b", `say "hi"`, `C:\dir`, nil},
+			valueType: pgtype.TextArrayOID,
+			expected:  `'{"a,b","say \"hi\"","C:\\dir",NULL}'`,
+		},
 	}
 
 	for _, tt := range tests {
