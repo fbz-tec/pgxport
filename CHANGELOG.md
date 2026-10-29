@@ -2,6 +2,31 @@
 
 All notable changes to pgxport will be documented in this file.
 
+## [v2.0.1] - 2026-10-29
+
+Bug-fix release focused on data correctness: exported files now always contain exactly the data stored in PostgreSQL, or the export fails with an error.
+
+### 🛠️ Fixes & Improvements
+
+- **SQL export: JSON and array values are now escaped.**
+  Single quotes inside `json`/`jsonb` values and array elements were written unescaped, producing invalid SQL (e.g. `O'Brien`) or allowing a stored value to inject SQL when the export is replayed. Array elements are now quoted, and `NULL` elements are written as `NULL` instead of `<nil>`.
+- **NUMERIC values keep every digit in all formats.**
+  `numeric` was converted to a 64-bit float, so `12345678901234567.89` was exported as `1.23456789012346e+16`. Values are now written exactly as PostgreSQL stores them, including trailing zeros (`1234.50`).
+- **NUMERIC `NaN` and `Infinity` no longer break exports.**
+  They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.
+- **`numeric[]` arrays are exported correctly** instead of as internal Go structures.
+- **Write errors at the end of an export are no longer ignored.**
+  The last buffered bytes and the compression trailer (gzip, zstd, lz4, zip index) are written when the file is closed. A failure at that point (disk full, network share) was silently ignored: the CLI printed `Export completed` and exited with code 0, leaving an empty, truncated or corrupt file. The export now fails with an error.
+- **XML export: JSON, arrays and values starting with `{` or `[` stay inside their element.**
+  These values were written outside their element and without escaping, so a single `&` or `<` made the whole document invalid.
+
+### ⚠️ Behavior changes
+
+- When an export fails, the partial output file is now **removed**. Devices and symlinks (e.g. `-o /dev/stdout`) are never removed.
+- `numeric` columns look different in exported files: exact values, trailing zeros kept, no scientific notation.
+- `numeric` cells in XLSX remain Excel numbers (Excel stores numbers as 64-bit floats).
+- In XML, JSON values are now escaped like any other text (`&#34;` instead of `"`). XML readers return the original JSON.
+
 ## [v2.0.0] - 2025-01-05
 Stable release of pgxport v2.0.0. No changes since rc2. Recommended for production use.
 
