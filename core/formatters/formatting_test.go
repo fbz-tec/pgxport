@@ -668,7 +668,7 @@ func TestFormatSQLValue(t *testing.T) {
 			name:      "text array with injection attempt",
 			value:     []interface{}{"x'); DROP TABLE users; --"},
 			valueType: pgtype.TextArrayOID,
-			expected:  `'{"x''); DROP TABLE users; --"}'`,
+			expected:  `'{x''); DROP TABLE users; --}'`, // every ' is still doubled: no way out of the literal
 		},
 		{
 			name:      "text array with comma, quote, backslash and NULL",
@@ -1026,7 +1026,7 @@ func TestNumericExact(t *testing.T) {
 	}
 
 	arr := []interface{}{pgtype.Numeric{Int: big.NewInt(150), Exp: -2, Valid: true}, nan}
-	if got := FormatSQLValue(arr, pgtype.NumericArrayOID); got != `'{1.50,"NaN"}'` {
+	if got := FormatSQLValue(arr, pgtype.NumericArrayOID); got != `'{1.50,NaN}'` {
 		t.Errorf("SQL numeric[] = %q", got)
 	}
 	if got := FormatCSVValue(arr, pgtype.NumericArrayOID, "", ""); got != "{1.50,NaN}" {
@@ -1080,5 +1080,17 @@ func TestFloatText(t *testing.T) {
 		if got := FormatSQLValue(tt.val, pgtype.Float8OID); got != tt.sqlText {
 			t.Errorf("SQL %v = %q, want %q", tt.val, got, tt.sqlText)
 		}
+	}
+}
+
+// TestJSONArrayStaysJSON checks that a jsonb array is written as JSON in CSV and XML,
+// not as a PostgreSQL array ({1,<nil>} before).
+func TestJSONArrayStaysJSON(t *testing.T) {
+	val := []interface{}{float64(1), nil, "x"}
+	if got := FormatCSVValue(val, pgtype.JSONBOID, "", ""); got != `[1,null,"x"]` {
+		t.Errorf("CSV jsonb array = %q", got)
+	}
+	if got := FormatXMLValue(val, pgtype.JSONBOID, "", ""); got != `[1,null,"x"]` {
+		t.Errorf("XML jsonb array = %q", got)
 	}
 }

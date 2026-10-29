@@ -14,6 +14,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
   `numeric` was converted to a 64-bit float, so `12345678901234567.89` was exported as `1.23456789012346e+16`. Values are now written exactly as PostgreSQL stores them, including trailing zeros (`1234.50`).
 - **`float8` and `real` values keep their exact value.**
   Floats were printed with 15 significant digits: `0.1 + 0.2` was exported as `0.3` instead of `0.30000000000000004`, and `real` values gained spurious digits (`0.1` became `0.100000001490116`). Floats are now written as PostgreSQL writes them, the same as `--with-copy`. `float8`/`real` `NaN` and `±Infinity` no longer abort JSON exports or produce invalid SQL: they are written as strings in JSON (`"NaN"`) and as `'NaN'::float8` in SQL, and `-0` keeps its sign.
+- **Types without dedicated handling are written as PostgreSQL text.**
+  `time`, `point`, `xml`, `bit`/`varbit`, `macaddr` and range types were written as internal Go structures (a `time` became `{49530123456 true}`, a `tsrange` a list of Go fields), and SQL exports containing them could not be reloaded. They are now written exactly as PostgreSQL writes them (`13:45:30.123456`, `(1.5,2)`, `[2024-01-01,2024-02-01)`), the same as `--with-copy`, in every format.
+- **Arrays keep `NULL` elements and quoting.** In CSV and XML, `NULL` array elements were written as `<nil>` and elements containing commas or quotes were not quoted (`{a,b}` for the single element `"a,b"`). Arrays are now written as PostgreSQL writes them (`{1,NULL,3}`, `{"a,b"}`).
+- **`jsonb` arrays stay JSON in CSV and XML.** A JSON array such as `[1, null]` was written as a PostgreSQL array (`{1,<nil>}`).
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
   They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.
 - **`numeric[]` arrays are exported correctly** instead of as internal Go structures.

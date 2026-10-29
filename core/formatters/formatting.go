@@ -54,6 +54,83 @@ func floatText(v interface{}) (s string, ok bool) {
 	return s, true
 }
 
+// textMap encodes values to PostgreSQL text format.
+// shortcut: a pgtype.Map is not safe for concurrent use; fine while each export runs in one goroutine.
+var textMap = pgtype.NewMap()
+
+// pgText returns val as PostgreSQL writes it in text format for type oid, the same text
+// as COPY and psql: 13:45:30.123456 for time, (1.5,2) for point, {1,NULL,3} for arrays.
+// ok is false when pgx cannot encode it (e.g. a type it does not know).
+func pgText(oid uint32, val interface{}) (string, bool) {
+	if r, isRange := val.(pgtype.Range[interface{}]); isRange {
+		return rangeText(oid, r)
+	}
+	b, err := textMap.Encode(oid, pgtype.TextFormatCode, val, nil)
+	if err != nil || b == nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+// needsPGText reports whether val is a pgx type (pgtype.Time, pgtype.Point, net.HardwareAddr...)
+// whose Go form is not readable, rather than a plain value pgxport writes as is.
+func needsPGText(val interface{}) bool {
+	switch val.(type) {
+	case string, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64,
+		float32, float64, time.Time, map[string]interface{}, []interface{}, Decimal:
+		return false
+	}
+	return true
+}
+
+// rangeElementOIDs maps the built-in range types to their element type.
+var rangeElementOIDs = map[uint32]uint32{
+	pgtype.Int4rangeOID: pgtype.Int4OID,
+	pgtype.Int8rangeOID: pgtype.Int8OID,
+	pgtype.NumrangeOID:  pgtype.NumericOID,
+	pgtype.TsrangeOID:   pgtype.TimestampOID,
+	pgtype.TstzrangeOID: pgtype.TimestamptzOID,
+	pgtype.DaterangeOID: pgtype.DateOID,
+}
+
+// rangeText writes a range as PostgreSQL does ([lower,upper), empty), since pgx cannot
+// encode the pgtype.Range[any] it decodes ranges into.
+func rangeText(oid uint32, r pgtype.Range[interface{}]) (string, bool) {
+	if r.LowerType == pgtype.Empty {
+		return "empty", true
+	}
+	elemOID, ok := rangeElementOIDs[oid]
+	if !ok {
+		return "", false
+	}
+	lower, okLower := rangeBound(elemOID, r.Lower, r.LowerType)
+	upper, okUpper := rangeBound(elemOID, r.Upper, r.UpperType)
+	if !okLower || !okUpper {
+		return "", false
+	}
+	open, close := "(", ")"
+	if r.LowerType == pgtype.Inclusive {
+		open = "["
+	}
+	if r.UpperType == pgtype.Inclusive {
+		close = "]"
+	}
+	return open + lower + "," + upper + close, true
+}
+
+// rangeBound writes one range bound, double-quoted when it contains spaces or
+// characters that are part of the range syntax.
+func rangeBound(oid uint32, v interface{}, bound pgtype.BoundType) (string, bool) {
+	if bound == pgtype.Unbounded {
+		return "", true
+	}
+	s, ok := pgText(oid, v)
+	if ok && (s == "" || strings.ContainsAny(s, " \t\n\",\\()[]")) {
+		s = `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+	}
+	return s, ok
+}
+
 // byteaHex returns binary data in PostgreSQL's hex format (\x0041ff), the same as COPY.
 // Raw bytes would put NUL and invalid UTF-8 into text files.
 func byteaHex(b []byte) string {
@@ -187,7 +264,13 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 		return val
 	}
 
-	// Return value as-is for generic types
+	// Types without special handling: PostgreSQL's text form rather than the Go structure
+	// pgx decodes them into (a time would print as {49530123456 true}).
+	if needsPGText(val) {
+		if s, ok := pgText(valueType, val); ok {
+			return s
+		}
+	}
 	return val
 }
 
@@ -200,6 +283,12 @@ func FormatJSONValue(val interface{}, valueType uint32, userTimefmt string, time
 // FormatCSVValue formats a PostgreSQL value for CSV export as a string.
 // Handles type-specific conversions and ensures proper string representation for CSV format.
 func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
+	// Arrays (and JSON arrays) as PostgreSQL writes them: quoted elements, NULL for nulls
+	if arr, ok := val.([]interface{}); ok {
+		if s, ok := pgText(valueType, arr); ok {
+			return s
+		}
+	}
 	result := formatValueByOID(val, valueType, userTimefmt, timeZone)
 
 	if result == nil {
@@ -241,6 +330,12 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 // FormatXMLValue formats a PostgreSQL value for XML export as a string.
 // Handles type-specific conversions and ensures proper string representation for XML format.
 func FormatXMLValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
+	// Arrays (and JSON arrays) as PostgreSQL writes them: quoted elements, NULL for nulls
+	if arr, ok := val.([]interface{}); ok {
+		if s, ok := pgText(valueType, arr); ok {
+			return s
+		}
+	}
 	result := formatValueByOID(val, valueType, userTimefmt, timeZone)
 
 	if result == nil {
@@ -381,6 +476,10 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 		return s
 
 	case []interface{}:
+		if s, ok := pgText(valueType, v); ok {
+			return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+		}
+		// Fallback for arrays pgx cannot encode (e.g. arrays of a custom enum)
 		if len(v) == 0 {
 			return "'{}'"
 		}
@@ -392,6 +491,11 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 
 	default:
 		str := fmt.Sprintf("%v", val)
+		if needsPGText(val) {
+			if s, ok := pgText(valueType, val); ok {
+				str = s
+			}
+		}
 		escaped := strings.ReplaceAll(str, "'", "''")
 		return fmt.Sprintf("'%s'", escaped)
 	}

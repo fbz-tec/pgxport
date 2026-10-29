@@ -528,6 +528,21 @@ func TestWriteSQLRoundTrip(t *testing.T) {
 		'Infinity'::float8 AS f4, '-Infinity'::float8 AS f5, '-0'::float8 AS f6, 100000000::float8 AS f7, 0.00001::float8 AS f8,
 		0.1::real AS r1, 3.4028235e38::real AS r2, 1000000::real AS r3`,
 		},
+		{
+			name: "types without special handling",
+			columns: "t time, ttz timetz, p point, x xml, b bit(4), vb varbit, mac macaddr, ip inet, net cidr, " +
+				"r1 int4range, r2 int4range, r3 int4range, r4 numrange, r5 daterange, r6 tsrange, r7 tstzrange, " +
+				"a1 int[], a2 text[], a3 bool[], a4 uuid[], a5 time[], j jsonb",
+			query: `SELECT '13:45:30.123456'::time AS t, '13:45:30+05:30'::timetz AS ttz, '(1.5,2)'::point AS p,
+		'<a>x &amp; y</a>'::xml AS x, B'1010' AS b, B'101'::varbit AS vb, '08:00:2b:01:02:03'::macaddr AS mac,
+		'192.168.1.10/24'::inet AS ip, '10.0.0.0/8'::cidr AS net,
+		'[1,10)'::int4range AS r1, '[1,)'::int4range AS r2, 'empty'::int4range AS r3, '(1.5,2.5]'::numrange AS r4,
+		'[2024-01-01,2024-02-01)'::daterange AS r5, '[2024-01-01 10:00,2024-01-01 12:30)'::tsrange AS r6,
+		'[2024-01-01 10:00+00,2024-01-01 16:30+05:30)'::tstzrange AS r7,
+		ARRAY[1,NULL,3] AS a1, ARRAY['a,b', 'say "hi"', 'C:\dir', ' lead', 'NULL', NULL, '', 'it''s'] AS a2,
+		ARRAY[true,false,NULL] AS a3, ARRAY['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'::uuid] AS a4,
+		ARRAY['13:45:30'::time, NULL] AS a5, '[1, null, "x"]'::jsonb AS j`,
+		},
 	}
 
 	// pgx returns timestamptz in the local zone: a half-hour offset used to shift times by 30 minutes.
