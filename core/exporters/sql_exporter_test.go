@@ -520,6 +520,14 @@ func TestWriteSQLRoundTrip(t *testing.T) {
 		'2024-01-15 10:30:00.123456'::timestamp AS ts, '2024-01-15 10:30:00.123456+00'::timestamptz AS tz,
 		ARRAY['2024-01-15 10:30:00.123456'::timestamp] AS tsa, ARRAY['2024-01-15 10:30:00.123456+00'::timestamptz] AS tza`,
 		},
+		{
+			name: "float precision and special values",
+			columns: "f1 float8, f2 float8, f3 float8, f4 float8, f5 float8, f6 float8, f7 float8, f8 float8, " +
+				"r1 real, r2 real, r3 real",
+			query: `SELECT 0.1::float8 + 0.2 AS f1, 1.2345678901234567e300::float8 AS f2, 'NaN'::float8 AS f3,
+		'Infinity'::float8 AS f4, '-Infinity'::float8 AS f5, '-0'::float8 AS f6, 100000000::float8 AS f7, 0.00001::float8 AS f8,
+		0.1::real AS r1, 3.4028235e38::real AS r2, 1000000::real AS r3`,
+		},
 	}
 
 	// pgx returns timestamptz in the local zone: a half-hour offset used to shift times by 30 minutes.

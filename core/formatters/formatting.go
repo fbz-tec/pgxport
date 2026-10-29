@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,36 @@ func (d Decimal) MarshalJSON() ([]byte, error) { return []byte(d), nil }
 
 func (d Decimal) MarshalYAML() (interface{}, error) {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: string(d)}, nil
+}
+
+// floatText returns a float32/float64 as PostgreSQL writes it: the shortest digits that
+// read back as the same value (0.30000000000000004, 0.1 for real), exponent notation only
+// below 1e-4 or from 1e15 (1e6 for real), and NaN, Infinity, -Infinity.
+// ok is false when v is not a float.
+func floatText(v interface{}) (s string, ok bool) {
+	var f float64
+	bits, maxFixedExp := 64, 15
+	switch x := v.(type) {
+	case float64:
+		f = x
+	case float32:
+		f, bits, maxFixedExp = float64(x), 32, 6
+	default:
+		return "", false
+	}
+	switch {
+	case math.IsNaN(f):
+		return "NaN", true
+	case math.IsInf(f, 1):
+		return "Infinity", true
+	case math.IsInf(f, -1):
+		return "-Infinity", true
+	}
+	s = strconv.FormatFloat(f, 'e', -1, bits)
+	if exp, err := strconv.Atoi(s[strings.LastIndexByte(s, 'e')+1:]); err == nil && exp >= -4 && exp < maxFixedExp {
+		s = strconv.FormatFloat(f, 'f', -1, bits)
+	}
+	return s, true
 }
 
 // byteaHex returns binary data in PostgreSQL's hex format (\x0041ff), the same as COPY.
@@ -82,6 +113,13 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 	}
 
 	switch valueType {
+	case pgtype.Float4OID, pgtype.Float8OID:
+		// JSON has no NaN or Infinity: they would abort the export, so they become text.
+		// Finite values stay numbers for JSON and YAML.
+		if s, ok := floatText(val); ok && (s == "NaN" || strings.HasSuffix(s, "Infinity")) {
+			return s
+		}
+
 	case pgtype.DateOID:
 		if t, ok := val.(time.Time); ok {
 			dateFmt := extractUserDateFormat(userTimefmt)
@@ -173,11 +211,9 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 	case string:
 		return v
 
-	case float64:
-		return fmt.Sprintf("%.15g", v)
-
-	case float32:
-		return fmt.Sprintf("%.15g", v)
+	case float64, float32:
+		s, _ := floatText(v)
+		return s
 
 	case []interface{}:
 		if len(v) == 0 {
@@ -216,11 +252,9 @@ func FormatXMLValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 	case string:
 		return v
 
-	case float64:
-		return fmt.Sprintf("%.15g", v)
-
-	case float32:
-		return fmt.Sprintf("%.15g", v)
+	case float64, float32:
+		s, _ := floatText(v)
+		return s
 
 	case []interface{}:
 		if len(v) == 0 {
@@ -339,7 +373,12 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 		return fmt.Sprintf("%d", val)
 
 	case float32, float64:
-		return fmt.Sprintf("%.15g", val)
+		s, _ := floatText(val)
+		// A bare NaN would be read as a column name, and a bare -0 as the integer 0
+		if s == "NaN" || strings.HasSuffix(s, "Infinity") || s == "-0" {
+			return fmt.Sprintf("'%s'::float8", s)
+		}
+		return s
 
 	case []interface{}:
 		if len(v) == 0 {
