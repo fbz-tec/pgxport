@@ -62,6 +62,7 @@ Release focused on data correctness: exported files now always contain exactly t
 - The CSV "slow row streaming" warning and the `avg fetch` figure of the verbose log are removed. The fetch time was measured after the row had arrived, so it was always 0 and the warning never fired; its `--with-copy` advice would also not help when the query itself is slow.
 - The `core/encoders` package is removed: JSON and YAML exports write each row directly in column order instead of building an ordered map per row. Output is unchanged for distinct column names.
 - The single-implementation interfaces `db.Store` and `logger.Logger` are removed, with the unused `GetLogger`, `SetOutput` and `IsQuiet`. Without the interface, `go vet` now checks the format strings passed to the logger.
+- Dependencies updated: `pgx` 5.11.0 (fixes GO-2026-5004, SQL injection via dollar-quoted strings), `excelize` 2.11.0 (fixes GO-2026-5960), `x/text` 0.43.0 (fixes GO-2026-5970 and GO-2026-6629), `klauspost/compress` 1.20.3, `lz4` 4.1.33, `cobra` 1.10.2, `pin` 0.10.0, `orderedmap` 3.1.1, `x/term` 0.47.0. Known vulnerabilities reachable from pgxport go from 8 to 2; the remaining two are in excelize, only affect reading workbooks (which pgxport never does), and are fixed upstream after 2.11.0. With excelize 2.11, CSV, JSON and YAML exports are about 6%, 7% and 15% slower (COPY mode unchanged); the cause is being investigated.
 - Built with Go 1.27.3 (was 1.25.5). It includes fixes for two `crypto/x509` and `crypto/tls` vulnerabilities (GO-2026-6809, GO-2026-6607).
 - `TestReadSQLFromFilePermissions` is skipped, with a reason, where file permissions are not enforced (Windows, or tests run as root). It failed there, so the full test suite never passed on Windows.
 
@@ -75,6 +76,7 @@ Release focused on data correctness: exported files now always contain exactly t
 - In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
 - A query that writes data now fails at execution with a PostgreSQL error (`cannot execute ... in a read-only transaction`) instead of being exported. Non-`SELECT`/`WITH` statements are reported as `unsupported SQL command` instead of `forbidden SQL command detected`.
 - The undocumented `DB_DRIVER` setting is ignored.
+- Array elements containing spaces are now double-quoted, as PostgreSQL writes them (`{"has space"}` instead of `{has space}`), following pgx 5.11. Both forms read back as the same array.
 - In zip exports, the file inside the archive keeps the upper-case letters of the output name (`Report_Q1.csv` instead of `report_q1.csv`).
 - In JSON, YAML and template exports, a repeated column name now appears as `name_2`, `name_3`… (template `.Columns` uses the same names).
 - In XML exports, columns whose names are not valid XML names get a different element name (see above). Two columns can end up with the same element name (`"a b"` and `"a_b"` both become `<a_b>`); the document stays valid and column order is kept.
