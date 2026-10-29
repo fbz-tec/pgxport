@@ -399,6 +399,43 @@ func TestWriteJSONDataTypes(t *testing.T) {
 	}
 }
 
+// TestWriteJSONNumericExact checks that NUMERIC keeps every digit and that NaN/Infinity no longer abort the export.
+func TestWriteJSONNumericExact(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	rows, err := conn.Query(context.Background(),
+		"SELECT 12345678901234567.89::numeric AS big, 'NaN'::numeric AS nan, 'Infinity'::numeric AS inf")
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.json")
+	exporter, err := Get(FormatJSON)
+	if err != nil {
+		t.Fatalf("Failed to get json exporter: %v", err)
+	}
+	if _, err := exporter.Export(rows, ExportOptions{Format: FormatJSON, Compression: "none", OutputPath: outputPath}); err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	var result []map[string]json.RawMessage
+	if err := json.Unmarshal(content, &result); err != nil {
+		t.Fatalf("Invalid JSON: %v\n%s", err, content)
+	}
+	want := map[string]string{"big": "12345678901234567.89", "nan": `"NaN"`, "inf": `"Infinity"`}
+	for k, v := range want {
+		if string(result[0][k]) != v {
+			t.Errorf("%s = %s, want %s", k, result[0][k], v)
+		}
+	}
+}
+
 func TestWriteJSONPrettyPrint(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()

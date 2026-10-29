@@ -1,11 +1,13 @@
 package formatters
 
 import (
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"gopkg.in/yaml.v3"
 )
 
 func TestConvertUserTimeFormat(t *testing.T) {
@@ -285,7 +287,7 @@ func TestFormatValueByOID(t *testing.T) {
 			valueType: pgtype.NumericOID,
 			timefmt:   "",
 			timezone:  "",
-			expected:  1250.75,
+			expected:  Decimal("1250.75"),
 		},
 		{
 			name:      "Invalid Numeric",
@@ -926,6 +928,72 @@ func BenchmarkFormatSQLValue(b *testing.B) {
 			FormatSQLValue(testDate, pgtype.DateOID)
 		}
 	})
+}
+
+// TestNumericExact checks that NUMERIC values keep every digit in every format
+// and that NaN/Infinity do not break JSON or SQL.
+func TestNumericExact(t *testing.T) {
+	big1 := pgtype.Numeric{Int: big.NewInt(1234567890123456789), Exp: -2, Valid: true} // 12345678901234567.89
+	trailingZero := pgtype.Numeric{Int: big.NewInt(123450), Exp: -2, Valid: true}     // 1234.50
+	nan := pgtype.Numeric{NaN: true, Valid: true}
+	inf := pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}
+	null := pgtype.Numeric{Valid: false}
+
+	if got := FormatCSVValue(big1, pgtype.NumericOID, "", ""); got != "12345678901234567.89" {
+		t.Errorf("CSV big = %q", got)
+	}
+	if got := FormatCSVValue(trailingZero, pgtype.NumericOID, "", ""); got != "1234.50" {
+		t.Errorf("CSV trailing zero = %q", got)
+	}
+	if got := FormatCSVValue(nan, pgtype.NumericOID, "", ""); got != "NaN" {
+		t.Errorf("CSV NaN = %q", got)
+	}
+
+	sqlCases := map[string]struct {
+		val  pgtype.Numeric
+		want string
+	}{
+		"big":      {big1, "12345678901234567.89"},
+		"NaN":      {nan, "'NaN'::numeric"},
+		"Infinity": {inf, "'Infinity'::numeric"},
+		"NULL":     {null, "NULL"},
+	}
+	for name, c := range sqlCases {
+		if got := FormatSQLValue(c.val, pgtype.NumericOID); got != c.want {
+			t.Errorf("SQL %s = %q, want %q", name, got, c.want)
+		}
+	}
+
+	for _, c := range []struct {
+		val  pgtype.Numeric
+		want string
+	}{{big1, "12345678901234567.89"}, {nan, `"NaN"`}, {inf, `"Infinity"`}} {
+		b, err := json.Marshal(FormatJSONValue(c.val, pgtype.NumericOID, "", ""))
+		if err != nil || string(b) != c.want {
+			t.Errorf("JSON = %s (err %v), want %s", b, err, c.want)
+		}
+	}
+
+	// Same path as OrderedYamlEncoder: encode the value into a node.
+	var node yaml.Node
+	if err := node.Encode(FormatYAMLValue(big1, pgtype.NumericOID, "", "")); err != nil {
+		t.Fatalf("YAML encode: %v", err)
+	}
+	if y, _ := yaml.Marshal(&node); string(y) != "12345678901234567.89\n" {
+		t.Errorf("YAML = %q", y)
+	}
+
+	if got := FormatXLSXValue(trailingZero, pgtype.NumericOID, "", ""); got != 1234.5 {
+		t.Errorf("XLSX = %v (%T), want float64 1234.5", got, got)
+	}
+
+	arr := []interface{}{pgtype.Numeric{Int: big.NewInt(150), Exp: -2, Valid: true}, nan}
+	if got := FormatSQLValue(arr, pgtype.NumericArrayOID); got != `'{1.50,"NaN"}'` {
+		t.Errorf("SQL numeric[] = %q", got)
+	}
+	if got := FormatCSVValue(arr, pgtype.NumericArrayOID, "", ""); got != "{1.50,NaN}" {
+		t.Errorf("CSV numeric[] = %q", got)
+	}
 }
 
 func BenchmarkQuoteIdent(b *testing.B) {

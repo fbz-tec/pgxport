@@ -4,11 +4,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"gopkg.in/yaml.v3"
 )
+
+// Decimal is the exact text of a finite NUMERIC value.
+// It is written as a bare number in JSON and YAML; going through float64 would drop digits.
+type Decimal string
+
+func (d Decimal) MarshalJSON() ([]byte, error) { return []byte(d), nil }
+
+func (d Decimal) MarshalYAML() (interface{}, error) {
+	return &yaml.Node{Kind: yaml.ScalarNode, Value: string(d)}, nil
+}
+
+// numericValue returns a NUMERIC as Decimal, as a plain string for NaN and ±Infinity
+// (JSON has no such numbers), or nil for NULL.
+func numericValue(num pgtype.Numeric) interface{} {
+	s, err := num.Value()
+	if err != nil || s == nil {
+		return nil
+	}
+	if num.NaN || num.InfinityModifier != pgtype.Finite {
+		return s
+	}
+	return Decimal(s.(string))
+}
 
 var timeFormatReplacer = strings.NewReplacer(
 	"yyyy", "2006",
@@ -81,14 +106,20 @@ func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, tim
 
 	case pgtype.NumericOID:
 		if num, ok := val.(pgtype.Numeric); ok {
-			if !num.Valid {
-				return nil
+			return numericValue(num)
+		}
+
+	case pgtype.NumericArrayOID:
+		if arr, ok := val.([]interface{}); ok {
+			out := make([]interface{}, len(arr))
+			for i, elem := range arr {
+				if num, ok := elem.(pgtype.Numeric); ok {
+					out[i] = numericValue(num)
+				} else {
+					out[i] = elem
+				}
 			}
-			f, err := num.Float64Value()
-			if err != nil || !f.Valid {
-				return nil
-			}
-			return f.Float64
+			return out
 		}
 
 	case pgtype.IntervalOID:
@@ -254,14 +285,14 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 
 	case pgtype.NumericOID:
 		if num, ok := val.(pgtype.Numeric); ok {
-			if !num.Valid {
+			switch v := numericValue(num).(type) {
+			case nil:
 				return "NULL"
+			case Decimal:
+				return string(v)
+			default:
+				return fmt.Sprintf("'%s'::numeric", v)
 			}
-			f, err := num.Float64Value()
-			if err != nil {
-				return "NULL"
-			}
-			return fmt.Sprintf("%.15g", f.Float64)
 		}
 
 	case pgtype.IntervalOID:
@@ -319,10 +350,13 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 // sqlArrayElem formats one element of a PostgreSQL array literal.
 // Non-numeric elements are double-quoted so commas, braces, quotes and spaces stay inside the element.
 func sqlArrayElem(elem interface{}) string {
+	if num, ok := elem.(pgtype.Numeric); ok {
+		elem = numericValue(num)
+	}
 	switch elem.(type) {
 	case nil:
 		return "NULL"
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool, Decimal:
 		return fmt.Sprintf("%v", elem)
 	}
 	s := strings.ReplaceAll(fmt.Sprintf("%v", elem), `\`, `\\`)
@@ -353,7 +387,14 @@ func FormatXLSXValue(value interface{}, oid uint32, timeFormat, timeZone string)
 		return string(b)
 	}
 
-	return formatValueByOID(value, oid, timeFormat, timeZone)
+	result := formatValueByOID(value, oid, timeFormat, timeZone)
+	// Excel stores numbers as float64, so a numeric cell beats exact text here.
+	if d, ok := result.(Decimal); ok {
+		if f, err := strconv.ParseFloat(string(d), 64); err == nil {
+			return f
+		}
+	}
+	return result
 }
 
 // FormatTemplateValue formats a PostgreSQL value for template-based exports.
