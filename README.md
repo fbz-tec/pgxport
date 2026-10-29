@@ -1026,6 +1026,8 @@ go vet ./...
 3. **Use parameterized queries**: When using dynamic SQL, be aware of SQL injection risks
 
 4. **Limit database permissions**: Use a database user with minimal required privileges (SELECT only for exports)
+   - pgxport runs every query in a `READ ONLY` transaction, so PostgreSQL refuses any data change, even one hidden in a function, a CTE or `setval()`.
+   - This does not block admin functions that do not write data (e.g. `pg_terminate_backend()`) or `dblink`, which opens its own connection. A SELECT-only user is the complete protection.
 
 5. **Secure your output files**: Be careful with sensitive data in exported files
 
