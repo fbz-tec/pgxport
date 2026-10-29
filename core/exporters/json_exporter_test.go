@@ -439,6 +439,48 @@ func TestWriteJSONNumericExact(t *testing.T) {
 	}
 }
 
+// TestWriteJSONTypesWithoutSpecialHandling checks that types pgxport has no rule for are
+// written as PostgreSQL text, not as the Go structure pgx decodes them into.
+func TestWriteJSONTypesWithoutSpecialHandling(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	rows, err := conn.Query(context.Background(), `SELECT '13:45:30.123456'::time AS t, '(1.5,2)'::point AS p,
+		B'1010' AS b, '08:00:2b:01:02:03'::macaddr AS mac, '[2024-01-01,2024-02-01)'::daterange AS r,
+		ARRAY[1,NULL,3] AS a, '[1, null]'::jsonb AS j`)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.json")
+	exporter, err := Get(FormatJSON)
+	if err != nil {
+		t.Fatalf("Failed to get json exporter: %v", err)
+	}
+	if _, err := exporter.Export(rows, ExportOptions{Format: FormatJSON, Compression: "none", OutputPath: outputPath}); err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	var result []map[string]json.RawMessage
+	if err := json.Unmarshal(content, &result); err != nil {
+		t.Fatalf("Invalid JSON: %v\n%s", err, content)
+	}
+	want := map[string]string{
+		"t": `"13:45:30.123456"`, "p": `"(1.5,2)"`, "b": `"1010"`, "mac": `"08:00:2b:01:02:03"`,
+		"r": `"[2024-01-01,2024-02-01)"`, "a": `[1,null,3]`, "j": `[1,null]`,
+	}
+	for k, v := range want {
+		if got := strings.Join(strings.Fields(string(result[0][k])), ""); got != v {
+			t.Errorf("%s = %s, want %s", k, got, v)
+		}
+	}
+}
+
 func TestWriteJSONPrettyPrint(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()

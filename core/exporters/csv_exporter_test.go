@@ -382,6 +382,15 @@ func TestWriteCSVMatchesCopy(t *testing.T) {
 			100000000::float8 AS g, 1e15::float8 AS h, 123456789012345::float8 AS i, 0.0001::float8 AS j, 0.00001::float8 AS k`,
 		"real shortest exact text": `SELECT 0.1::real AS a, 3.14159::real AS b, 3.4028235e38::real AS c,
 			100000::real AS d, 1000000::real AS e, 'NaN'::real AS f`,
+		"types without special handling": `SELECT '13:45:30.123456'::time AS t, '13:45:30+05:30'::timetz AS ttz,
+			'(1.5,2)'::point AS p, '<a>x &amp; y</a>'::xml AS x, B'1010' AS b, B'101'::varbit AS vb,
+			'08:00:2b:01:02:03'::macaddr AS mac, '192.168.1.10/24'::inet AS ip, '10.0.0.0/8'::cidr AS net`,
+		"ranges": `SELECT '[1,10)'::int4range AS a, '[1,)'::int4range AS b, 'empty'::int4range AS c,
+			'(1.5,2.5]'::numrange AS d, '[2024-01-01,2024-02-01)'::daterange AS e,
+			'[2024-01-01 10:00,2024-01-01 12:30)'::tsrange AS f`,
+		"arrays with NULL and quoting": `SELECT ARRAY[1,NULL,3] AS a, ARRAY['a,b', 'say "hi"', 'C:\dir', ' lead', 'NULL', NULL, ''] AS b,
+			ARRAY[1.50, 'NaN', NULL]::numeric[] AS c, ARRAY['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'::uuid] AS d,
+			ARRAY[true, NULL] AS e`,
 	}
 	for name, query := range tests {
 		t.Run(name, func(t *testing.T) {
