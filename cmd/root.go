@@ -243,6 +243,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 	if err := validation.ValidateQuery(query); err != nil {
 		return err
 	}
+	// COPY embeds the query in parentheses, where a final ';' is a syntax error
+	query = validation.TrimTerminator(query)
 
 	format = strings.ToLower(strings.TrimSpace(format))
 

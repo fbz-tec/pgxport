@@ -298,16 +298,27 @@ func TestValidateQuery(t *testing.T) {
 		},
 
 		// ========== Real-world Attack Scenarios ==========
+		// A comment after the final semicolon is never executed, so it is allowed.
 		{
-			name:    "attack: comment hiding DELETE",
+			name:    "DELETE inside a comment after the semicolon",
 			query:   "SELECT * FROM users; -- DELETE FROM users;",
-			wantErr: true, // Multiple statements detected (semicolon creates second statement even if comment is removed)
+			wantErr: false,
+		},
+		{
+			name:    "DELETE inside a multi-line comment after the semicolon",
+			query:   "SELECT * FROM users; /* DELETE FROM users; */",
+			wantErr: false,
+		},
+		{
+			name:    "attack: statement after a comment after the semicolon",
+			query:   "SELECT * FROM users; -- report\nDELETE FROM users",
+			wantErr: true,
 			errMsg:  "only a single SQL statement",
 		},
 		{
-			name:    "attack: multi-line comment hiding DELETE",
-			query:   "SELECT * FROM users; /* DELETE FROM users; */",
-			wantErr: true, // Multiple statements detected (semicolon creates second statement even if comment is removed)
+			name:    "attack: statement after a multi-line comment after the semicolon",
+			query:   "SELECT * FROM users; /* report */ DELETE FROM users",
+			wantErr: true,
 			errMsg:  "only a single SQL statement",
 		},
 		{
@@ -432,6 +443,32 @@ func TestValidateQuery_ComplexQueries(t *testing.T) {
 				if err != nil {
 					t.Logf("Error message: %v", err)
 				}
+			}
+		})
+	}
+}
+
+func TestTrimTerminator(t *testing.T) {
+	tests := []struct {
+		query string
+		want  string
+	}{
+		{"SELECT 1", "SELECT 1"},
+		{"SELECT 1;", "SELECT 1"},
+		{"SELECT 1;\n", "SELECT 1"},
+		{"SELECT 1; -- end of report\n", "SELECT 1"},
+		{"SELECT 1 /* x */ ; /* trailing */", "SELECT 1 /* x */ "},
+		{"SELECT ';' AS s;", "SELECT ';' AS s"},
+		{"SELECT 1 -- note; not a terminator", "SELECT 1 -- note; not a terminator"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			if err := ValidateQuery(tt.query); err != nil {
+				t.Fatalf("ValidateQuery(%q) error: %v", tt.query, err)
+			}
+			if got := TrimTerminator(tt.query); got != tt.want {
+				t.Errorf("TrimTerminator(%q) = %q, want %q", tt.query, got, tt.want)
 			}
 		})
 	}

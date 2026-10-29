@@ -16,7 +16,7 @@ func ValidateQuery(query string) error {
 	}
 
 	// Checked before comment removal, so a comment cannot hide a second statement
-	if hasMultipleStatements(query) {
+	if _, multiple := statementEnd(query); multiple {
 		return fmt.Errorf("only a single SQL statement is allowed")
 	}
 
@@ -32,10 +32,18 @@ func ValidateQuery(query string) error {
 	return nil
 }
 
-// hasMultipleStatements checks if the query contains multiple statements
-// by detecting semicolons outside of string literals and comments
-// This is done before comment removal to catch attempts to hide statements
-func hasMultipleStatements(query string) bool {
+// TrimTerminator returns the query without its final ';' and any comment after it,
+// so it can be embedded in another statement such as COPY (...) TO STDOUT.
+// Call it after ValidateQuery, which guarantees a single statement.
+func TrimTerminator(query string) string {
+	end, _ := statementEnd(query)
+	return query[:end]
+}
+
+// statementEnd returns where the first statement ends: the position of its ';'
+// outside of string literals and comments, or len(query) if there is none.
+// multiple is true when another statement follows; comments after the ';' do not count.
+func statementEnd(query string) (end int, multiple bool) {
 	semicolonCount := 0
 	semicolonPos := -1
 	inSingleQuote := false
@@ -129,7 +137,7 @@ func hasMultipleStatements(query string) bool {
 				}
 				// If we find more than one semicolon, we have multiple statements
 				if semicolonCount > 1 {
-					return true
+					return semicolonPos, true
 				}
 			}
 		}
@@ -137,17 +145,11 @@ func hasMultipleStatements(query string) bool {
 		i++
 	}
 
-	// If we have exactly one semicolon, check if it's at the end (allowed) or in the middle (multiple statements)
-	if semicolonCount == 1 && semicolonPos != -1 {
-		// Check what comes after the semicolon
-		afterSemicolon := strings.TrimSpace(query[semicolonPos+1:])
-		// If there's anything after the semicolon (even just a comment), it's multiple statements
-		if len(afterSemicolon) > 0 {
-			return true
-		}
+	if semicolonPos == -1 {
+		return len(query), false
 	}
-
-	return false
+	// Only comments may follow the terminating semicolon
+	return semicolonPos, strings.TrimSpace(removeSQLComments(query[semicolonPos+1:])) != ""
 }
 
 // removeSQLComments removes SQL comments from the query
