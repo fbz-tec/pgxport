@@ -66,12 +66,8 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 
 	rowCount := 0
 	lastLog := time.Now()
-	var fetchTime time.Duration // Track time spent waiting for rows from PostgreSQL
 
 	for rows.Next() {
-		fetchStart := time.Now()
-		fetchTime += time.Since(fetchStart)
-
 		values, err := rows.Values()
 		if err != nil {
 			return rowCount, fmt.Errorf("error reading row: %w", err)
@@ -93,10 +89,9 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 		if logger.IsVerbose() && (rowCount%10000 == 0 || time.Since(lastLog) > 2*time.Second) {
 			elapsed := time.Since(start)
 			rowsPerSec := float64(rowCount) / elapsed.Seconds()
-			avgFetchMs := float64(fetchTime.Milliseconds()) / float64(rowCount)
 
-			logger.Debug("%d rows written (%.0f rows/s, elapsed %v, avg fetch=%.2fms/row)",
-				rowCount, rowsPerSec, elapsed.Truncate(100*time.Millisecond), avgFetchMs)
+			logger.Debug("%d rows written (%.0f rows/s, elapsed %v)",
+				rowCount, rowsPerSec, elapsed.Truncate(100*time.Millisecond))
 
 			writer.Flush()
 			lastLog = time.Now()
@@ -119,17 +114,6 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 	logger.Debug("CSV export completed successfully: %d rows written in %v (%.0f rows/s)",
 		rowCount, elapsed.Round(time.Millisecond), float64(rowCount)/elapsed.Seconds())
 
-	// Detect slow streaming and suggest COPY mode
-	if logger.IsVerbose() && rowCount > 1000 {
-		avgFetchMs := float64(fetchTime.Milliseconds()) / float64(rowCount)
-		fetchPercent := (fetchTime.Seconds() / elapsed.Seconds()) * 100
-
-		// If average fetch time > 5ms per row OR fetch time > 70% of total time, suggest COPY mode
-		if avgFetchMs > 5.0 || fetchPercent > 70 {
-			logger.Warn("Slow row streaming detected (%.1fms/row, %.0f%% fetch time)", avgFetchMs, fetchPercent)
-			logger.Info("For better performance, use --with-copy flag (PostgreSQL COPY is 10-100x faster)")
-		}
-	}
 	sp.Stop("Completed!")
 	return rowCount, nil
 }
