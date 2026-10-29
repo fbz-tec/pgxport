@@ -40,6 +40,8 @@ Bug-fix release focused on data correctness: exported files now always contain e
   An empty password was always written into the connection URL, which overrode `PGPASSWORD` and `~/.pgpass`, although the README recommends `PGPASSWORD`. `DB_PASS` and `--password` still take precedence when set.
 - **`--time-zone` no longer slows exports down.**
   The time zone was loaded from disk again for every `timestamptz` value. Exporting 1 million rows took 12.4 s instead of 1 s with one `timestamptz` column, and 48 s instead of 2.2 s with four. Each time zone is now loaded once.
+- **YAML export streams rows instead of keeping the whole result in memory.**
+  The YAML document was built in memory and written only after the last row: a 1 million row export (4 columns, 106 MB file) used 12 GB of RAM and could be killed by the system. Rows are now written as they are read, using about 20 MB like the JSON export. The output file is unchanged; an empty result is still written as `[]`.
 
 ### ⚠️ Behavior changes
 

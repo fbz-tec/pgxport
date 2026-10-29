@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/elliotchance/orderedmap/v3"
@@ -30,14 +31,6 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 		return 0, err
 	}
 	defer output.Finish(writerCloser, &err)
-
-	enc := yaml.NewEncoder(writerCloser)
-	enc.SetIndent(2)
-
-	// Root YAML Sequence (the "-" items)
-	rootSeq := &yaml.Node{
-		Kind: yaml.SequenceNode,
-	}
 
 	// Column order
 	fields := rows.FieldDescriptions()
@@ -71,10 +64,13 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 			return rowCount, fmt.Errorf("error encoding YAML row %d: %w", rowCount+1, err)
 		}
 
-		// Add to sequence
-		rootSeq.Content = append(rootSeq.Content, rowNode)
+		// Written right away as a one-item list: "- key: value" items placed one after
+		// another form the same single YAML list, without keeping all rows in memory.
+		if err := writeYAML(writerCloser, &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{rowNode}}); err != nil {
+			return rowCount, fmt.Errorf("error writing YAML row %d: %w", rowCount+1, err)
+		}
 		rowCount++
-		sp.Update(fmt.Sprintf("[1/2] Processing rows... %d rows [%ds]",
+		sp.Update(fmt.Sprintf("Processing rows... %d rows [%ds]",
 			rowCount,
 			int(time.Since(start).Seconds())))
 
@@ -87,27 +83,30 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 		return rowCount, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	sp.Stop("Completed!")
+	// No rows: an empty list ("[]"), not an empty document (which reads as null)
+	if rowCount == 0 {
+		if err := writeYAML(writerCloser, &yaml.Node{Kind: yaml.SequenceNode}); err != nil {
+			return 0, fmt.Errorf("error writing YAML: %w", err)
+		}
+	}
 
-	var sp2 *ui.Spinner
-	if options.ProgressBar {
-		sp2 = ui.NewSpinner()
-		sp2.Start()
-	}
-	sp2.Update("[2/2] Writing output...")
-	// Encode final YAML sequence
-	if err := enc.Encode(rootSeq); err != nil {
-		return rowCount, fmt.Errorf("error writing YAML: %w", err)
-	}
-	if err := enc.Close(); err != nil {
-		return rowCount, fmt.Errorf("error finalizing YAML: %w", err)
-	}
-	sp2.Stop("Completed!")
+	sp.Stop("Completed!")
 
 	logger.Debug("YAML export completed: %d rows written in %v",
 		rowCount, time.Since(start))
 
 	return rowCount, nil
+}
+
+// writeYAML writes node as one YAML document with pgxport's 2-space indentation.
+// A new encoder per call: reusing one would separate documents with "---".
+func writeYAML(w io.Writer, node *yaml.Node) error {
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+	if err := enc.Encode(node); err != nil {
+		return err
+	}
+	return enc.Close()
 }
 
 func init() {
