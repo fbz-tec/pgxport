@@ -126,6 +126,12 @@ func TestReadSQLFromFilePermissions(t *testing.T) {
 	// Restore permissions in cleanup
 	defer os.Chmod(tmpFile, 0644)
 
+	// Windows ignores Unix read bits and root reads any file: then there is nothing to test
+	if f, err := os.Open(tmpFile); err == nil {
+		f.Close()
+		t.Skip("file permissions are not enforced here (Windows or root)")
+	}
+
 	_, err = readSQLFromFile(tmpFile)
 	if err == nil {
 		t.Error("readSQLFromFile() should fail with no-read permissions")
