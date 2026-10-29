@@ -62,6 +62,7 @@ Release focused on data correctness: exported files now always contain exactly t
 - The CSV "slow row streaming" warning and the `avg fetch` figure of the verbose log are removed. The fetch time was measured after the row had arrived, so it was always 0 and the warning never fired; its `--with-copy` advice would also not help when the query itself is slow.
 - The `core/encoders` package is removed: JSON and YAML exports write each row directly in column order instead of building an ordered map per row. Output is unchanged for distinct column names.
 - The single-implementation interfaces `db.Store` and `logger.Logger` are removed, with the unused `GetLogger`, `SetOutput` and `IsQuiet`. Without the interface, `go vet` now checks the format strings passed to the logger.
+- Built with Go 1.27.3 (was 1.25.5). It includes fixes for two `crypto/x509` and `crypto/tls` vulnerabilities (GO-2026-6809, GO-2026-6607).
 - `TestReadSQLFromFilePermissions` is skipped, with a reason, where file permissions are not enforced (Windows, or tests run as root). It failed there, so the full test suite never passed on Windows.
 
 ### ⚠️ Behavior changes
