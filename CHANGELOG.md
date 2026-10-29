@@ -38,6 +38,8 @@ Bug-fix release focused on data correctness: exported files now always contain e
   The port flag was only applied when it differed from its default value, so `-P 5432` was ignored when `.env` or the environment set another port. The verbose log also printed the port as `%!s(int=5433)`.
 - **`PGPASSWORD` and `~/.pgpass` now work when `DB_PASS` is not set.**
   An empty password was always written into the connection URL, which overrode `PGPASSWORD` and `~/.pgpass`, although the README recommends `PGPASSWORD`. `DB_PASS` and `--password` still take precedence when set.
+- **`--time-zone` no longer slows exports down.**
+  The time zone was loaded from disk again for every `timestamptz` value. Exporting 1 million rows took 12.4 s instead of 1 s with one `timestamptz` column, and 48 s instead of 2.2 s with four. Each time zone is now loaded once.
 
 ### ⚠️ Behavior changes
 
