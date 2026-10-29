@@ -117,78 +117,6 @@ func TestExtractUserDateFormat(t *testing.T) {
 	}
 }
 
-func TestFormatValue(t *testing.T) {
-	testTime := time.Date(2024, 3, 15, 14, 30, 45, 123000000, time.UTC)
-	layout := "2006-01-02 15:04:05"
-	loc := time.UTC
-
-	tests := []struct {
-		name     string
-		value    interface{}
-		expected interface{}
-	}{
-		{
-			name:     "nil value",
-			value:    nil,
-			expected: nil,
-		},
-		{
-			name:     "time.Time value",
-			value:    testTime,
-			expected: "2024-03-15 14:30:45",
-		},
-		{
-			name:     "[]byte value",
-			value:    []byte("test data"),
-			expected: "test data",
-		},
-		{
-			name:     "float32 value",
-			value:    float32(3.14159),
-			expected: "3.1415901184082",
-		},
-		{
-			name:     "float64 value",
-			value:    float64(2.718281828459045),
-			expected: "2.71828182845905",
-		},
-		{
-			name:     "string value",
-			value:    "test string",
-			expected: "test string",
-		},
-		{
-			name:     "int value",
-			value:    42,
-			expected: 42,
-		},
-		{
-			name:     "bool value",
-			value:    true,
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatValue(tt.value, layout, loc)
-
-			// For floats, we need to compare strings since the formatting might differ slightly
-			if _, ok := tt.value.(float32); ok {
-				if result.(string) != tt.expected.(string) {
-					t.Errorf("formatValue(%v) = %v, want %v", tt.value, result, tt.expected)
-				}
-			} else if _, ok := tt.value.(float64); ok {
-				if result.(string) != tt.expected.(string) {
-					t.Errorf("formatValue(%v) = %v, want %v", tt.value, result, tt.expected)
-				}
-			} else if result != tt.expected {
-				t.Errorf("formatValue(%v) = %v, want %v", tt.value, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestFormatValueByOID(t *testing.T) {
 	testDate := time.Date(2021, 9, 25, 0, 0, 0, 0, time.UTC)
 	testTimestamp := time.Date(2024, 3, 15, 14, 30, 45, 123000000, time.UTC)
@@ -319,7 +247,7 @@ func TestFormatValueByOID(t *testing.T) {
 	}
 }
 
-func TestFormatCSVValue(t *testing.T) {
+func TestFormatTextValue(t *testing.T) {
 	testDate := time.Date(2021, 9, 25, 0, 0, 0, 0, time.UTC)
 	testArray := []interface{}{"pgxport", "go", "json"}
 
@@ -391,9 +319,9 @@ func TestFormatCSVValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatCSVValue(tt.val, tt.valueType, tt.timefmt, tt.timezone)
+			result := FormatTextValue(tt.val, tt.valueType, tt.timefmt, tt.timezone)
 			if result != tt.expected {
-				t.Errorf("FormatCSVValue() = %q, want %q", result, tt.expected)
+				t.Errorf("FormatTextValue() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -449,61 +377,6 @@ func TestFormatJSONValue(t *testing.T) {
 			result := FormatJSONValue(tt.val, tt.valueType, tt.timefmt, tt.timezone)
 			if result != tt.expected {
 				t.Errorf("formatJSONValue() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFormatXMLValue(t *testing.T) {
-	testDate := time.Date(2021, 9, 25, 0, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		name      string
-		val       interface{}
-		valueType uint32
-		timefmt   string
-		timezone  string
-		expected  string
-	}{
-		{
-			name:      "nil value returns empty string",
-			val:       nil,
-			valueType: pgtype.TextOID,
-			timefmt:   "",
-			timezone:  "",
-			expected:  "",
-		},
-		{
-			name:      "Date formatting",
-			val:       testDate,
-			valueType: pgtype.DateOID,
-			timefmt:   "yyyy-MM-dd",
-			timezone:  "",
-			expected:  "2021-09-25",
-		},
-		{
-			name:      "String value",
-			val:       "test string",
-			valueType: pgtype.TextOID,
-			timefmt:   "",
-			timezone:  "",
-			expected:  "test string",
-		},
-		{
-			name:      "Float formatting",
-			val:       float64(1250.75),
-			valueType: pgtype.Float8OID,
-			timefmt:   "",
-			timezone:  "",
-			expected:  "1250.75",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatXMLValue(tt.val, tt.valueType, tt.timefmt, tt.timezone)
-			if result != tt.expected {
-				t.Errorf("formatXMLValue() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -688,52 +561,6 @@ func TestFormatSQLValue(t *testing.T) {
 	}
 }
 
-func TestFormatValueWithDifferentTimezones(t *testing.T) {
-	testTime := time.Date(2024, 3, 15, 14, 30, 45, 0, time.UTC)
-	layout := "2006-01-02 15:04:05"
-
-	tests := []struct {
-		name     string
-		timezone string
-		expected string
-	}{
-		{
-			name:     "UTC timezone",
-			timezone: "UTC",
-			expected: "2024-03-15 14:30:45",
-		},
-		{
-			name:     "America/New_York timezone",
-			timezone: "America/New_York",
-			expected: "2024-03-15 10:30:45", // UTC-4 in March (EDT)
-		},
-		{
-			name:     "Europe/Paris timezone",
-			timezone: "Europe/Paris",
-			expected: "2024-03-15 15:30:45", // UTC+1 in March (CET)
-		},
-		{
-			name:     "Asia/Tokyo timezone",
-			timezone: "Asia/Tokyo",
-			expected: "2024-03-15 23:30:45", // UTC+9
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc, err := time.LoadLocation(tt.timezone)
-			if err != nil {
-				t.Skipf("Timezone %s not available: %v", tt.timezone, err)
-			}
-
-			result := formatValue(testTime, layout, loc)
-			if result != tt.expected {
-				t.Errorf("formatValue with timezone %s = %v, want %v", tt.timezone, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestQuoteIdent(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -840,31 +667,6 @@ func TestUserTimeZoneFormat(t *testing.T) {
 	}
 }
 
-// Benchmark tests
-func BenchmarkFormatValue(b *testing.B) {
-	testTime := time.Date(2024, 3, 15, 14, 30, 45, 0, time.UTC)
-	layout := "2006-01-02 15:04:05"
-	loc := time.UTC
-
-	b.Run("time", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			formatValue(testTime, layout, loc)
-		}
-	})
-
-	b.Run("string", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			formatValue("test string", layout, loc)
-		}
-	})
-
-	b.Run("float", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			formatValue(3.14159, layout, loc)
-		}
-	})
-}
-
 func BenchmarkFormatValueByOID(b *testing.B) {
 	testDate := time.Date(2021, 9, 25, 0, 0, 0, 0, time.UTC)
 
@@ -887,30 +689,30 @@ func BenchmarkFormatValueByOID(b *testing.B) {
 	})
 }
 
-func BenchmarkFormatCSVValue(b *testing.B) {
+func BenchmarkFormatTextValue(b *testing.B) {
 	testDate := time.Date(2021, 9, 25, 0, 0, 0, 0, time.UTC)
 
 	b.Run("date", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FormatCSVValue(testDate, pgtype.DateOID, "yyyy-MM-dd", "")
+			FormatTextValue(testDate, pgtype.DateOID, "yyyy-MM-dd", "")
 		}
 	})
 
 	b.Run("string", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FormatCSVValue("test string", pgtype.TextOID, "", "")
+			FormatTextValue("test string", pgtype.TextOID, "", "")
 		}
 	})
 
 	b.Run("float", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FormatCSVValue(3.14159, pgtype.Float4OID, "", "")
+			FormatTextValue(3.14159, pgtype.Float4OID, "", "")
 		}
 	})
 
 	b.Run("timestamptz with time zone", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FormatCSVValue(testDate, pgtype.TimestamptzOID, "yyyy-MM-dd HH:mm:ss", "Europe/Paris")
+			FormatTextValue(testDate, pgtype.TimestamptzOID, "yyyy-MM-dd HH:mm:ss", "Europe/Paris")
 		}
 	})
 }
@@ -977,13 +779,13 @@ func TestNumericExact(t *testing.T) {
 	inf := pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}
 	null := pgtype.Numeric{Valid: false}
 
-	if got := FormatCSVValue(big1, pgtype.NumericOID, "", ""); got != "12345678901234567.89" {
+	if got := FormatTextValue(big1, pgtype.NumericOID, "", ""); got != "12345678901234567.89" {
 		t.Errorf("CSV big = %q", got)
 	}
-	if got := FormatCSVValue(trailingZero, pgtype.NumericOID, "", ""); got != "1234.50" {
+	if got := FormatTextValue(trailingZero, pgtype.NumericOID, "", ""); got != "1234.50" {
 		t.Errorf("CSV trailing zero = %q", got)
 	}
-	if got := FormatCSVValue(nan, pgtype.NumericOID, "", ""); got != "NaN" {
+	if got := FormatTextValue(nan, pgtype.NumericOID, "", ""); got != "NaN" {
 		t.Errorf("CSV NaN = %q", got)
 	}
 
@@ -1029,7 +831,7 @@ func TestNumericExact(t *testing.T) {
 	if got := FormatSQLValue(arr, pgtype.NumericArrayOID); got != `'{1.50,NaN}'` {
 		t.Errorf("SQL numeric[] = %q", got)
 	}
-	if got := FormatCSVValue(arr, pgtype.NumericArrayOID, "", ""); got != "{1.50,NaN}" {
+	if got := FormatTextValue(arr, pgtype.NumericArrayOID, "", ""); got != "{1.50,NaN}" {
 		t.Errorf("CSV numeric[] = %q", got)
 	}
 }
@@ -1074,7 +876,7 @@ func TestFloatText(t *testing.T) {
 		{math.Copysign(0, -1), "-0", "'-0'::float8"},
 	}
 	for _, tt := range tests {
-		if got := FormatCSVValue(tt.val, pgtype.Float8OID, "", ""); got != tt.csv {
+		if got := FormatTextValue(tt.val, pgtype.Float8OID, "", ""); got != tt.csv {
 			t.Errorf("CSV %v = %q, want %q", tt.val, got, tt.csv)
 		}
 		if got := FormatSQLValue(tt.val, pgtype.Float8OID); got != tt.sqlText {
@@ -1087,10 +889,7 @@ func TestFloatText(t *testing.T) {
 // not as a PostgreSQL array ({1,<nil>} before).
 func TestJSONArrayStaysJSON(t *testing.T) {
 	val := []interface{}{float64(1), nil, "x"}
-	if got := FormatCSVValue(val, pgtype.JSONBOID, "", ""); got != `[1,null,"x"]` {
-		t.Errorf("CSV jsonb array = %q", got)
-	}
-	if got := FormatXMLValue(val, pgtype.JSONBOID, "", ""); got != `[1,null,"x"]` {
-		t.Errorf("XML jsonb array = %q", got)
+	if got := FormatTextValue(val, pgtype.JSONBOID, "", ""); got != `[1,null,"x"]` {
+		t.Errorf("jsonb array = %q", got)
 	}
 }

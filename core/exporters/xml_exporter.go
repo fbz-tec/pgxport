@@ -80,7 +80,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 
 		for i, field := range keys {
 			elem := xml.StartElement{Name: xml.Name{Local: field}}
-			val := formatters.FormatXMLValue(values[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			val := formatters.FormatTextValue(values[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
 			// JSON and arrays are text like any other value: they must stay inside the element and be escaped.
 			if err := encoder.EncodeElement(val, elem); err != nil {
 				return rowCount, fmt.Errorf("error encoding field %s: %w", field, err)

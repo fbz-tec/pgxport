@@ -162,26 +162,6 @@ var timeFormatReplacer = strings.NewReplacer(
 	"S", "0", // Deciseconds
 )
 
-// formatValue is kept for backward compatibility (not used in new code)
-func formatValue(v interface{}, layout string, loc *time.Location) interface{} {
-	if v == nil {
-		return nil
-	}
-
-	switch val := v.(type) {
-	case time.Time:
-		return val.In(loc).Format(layout)
-	case []byte:
-		return string(val)
-	case float32:
-		return fmt.Sprintf("%.15g", val)
-	case float64:
-		return fmt.Sprintf("%.15g", val)
-	default:
-		return val
-	}
-}
-
 // formatValueByOID is the central function that handles all PostgreSQL type conversions.
 // It returns interface{} for maximum flexibility across different export formats.
 func formatValueByOID(val interface{}, valueType uint32, userTimefmt string, timeZone string) interface{} {
@@ -280,9 +260,9 @@ func FormatJSONValue(val interface{}, valueType uint32, userTimefmt string, time
 	return formatValueByOID(val, valueType, userTimefmt, timeZone)
 }
 
-// FormatCSVValue formats a PostgreSQL value for CSV export as a string.
-// Handles type-specific conversions and ensures proper string representation for CSV format.
-func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
+// FormatTextValue formats a PostgreSQL value as text for the text-based exports (CSV, XML).
+// NULL becomes an empty string; JSON stays JSON; other values are written as PostgreSQL writes them.
+func FormatTextValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
 	// Arrays (and JSON arrays) as PostgreSQL writes them: quoted elements, NULL for nulls
 	if arr, ok := val.([]interface{}); ok {
 		if s, ok := pgText(valueType, arr); ok {
@@ -295,7 +275,6 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 		return ""
 	}
 
-	// Handle specific conversions for CSV format
 	switch v := result.(type) {
 	case string:
 		return v
@@ -305,6 +284,7 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 		return s
 
 	case []interface{}:
+		// Fallback for arrays pgx cannot encode (e.g. arrays of a custom enum)
 		if len(v) == 0 {
 			return "{}"
 		}
@@ -315,58 +295,10 @@ func FormatCSVValue(val interface{}, valueType uint32, userTimefmt string, timeZ
 		return fmt.Sprintf("{%s}", strings.Join(elems, ","))
 
 	default:
-		// Special handling for JSON/JSONB in CSV
 		if valueType == pgtype.JSONBOID || valueType == pgtype.JSONOID {
 			jsonStr, err := json.Marshal(v)
 			if err != nil {
 				return "{}"
-			}
-			return string(jsonStr)
-		}
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// FormatXMLValue formats a PostgreSQL value for XML export as a string.
-// Handles type-specific conversions and ensures proper string representation for XML format.
-func FormatXMLValue(val interface{}, valueType uint32, userTimefmt string, timeZone string) string {
-	// Arrays (and JSON arrays) as PostgreSQL writes them: quoted elements, NULL for nulls
-	if arr, ok := val.([]interface{}); ok {
-		if s, ok := pgText(valueType, arr); ok {
-			return s
-		}
-	}
-	result := formatValueByOID(val, valueType, userTimefmt, timeZone)
-
-	if result == nil {
-		return ""
-	}
-
-	// Handle specific conversions for XML format
-	switch v := result.(type) {
-	case string:
-		return v
-
-	case float64, float32:
-		s, _ := floatText(v)
-		return s
-
-	case []interface{}:
-		if len(v) == 0 {
-			return "{}"
-		}
-		elems := make([]string, len(v))
-		for i, elem := range v {
-			elems[i] = fmt.Sprintf("%v", elem)
-		}
-		return fmt.Sprintf("{%s}", strings.Join(elems, ","))
-
-	default:
-		// Special handling for JSON/JSONB in XML
-		if valueType == pgtype.JSONBOID || valueType == pgtype.JSONOID {
-			jsonStr, err := json.Marshal(v)
-			if err != nil {
-				return ""
 			}
 			return string(jsonStr)
 		}
