@@ -23,6 +23,7 @@ func newGzipWriter(path string) (io.WriteCloser, error) {
 	}
 	gzipWriter := gzip.NewWriter(file)
 	return &compositeWriteCloser{
+		path:   path,
 		Writer: gzipWriter,
 		closeFunc: func() error {
 			logger.Debug("Finalizing gzip compression for: %s", path)

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -667,6 +668,75 @@ func TestCompositeWriteCloser_NilCloseFunc(t *testing.T) {
 	err := writer.Close()
 	if err != nil {
 		t.Errorf("Close() with nil closeFunc should not error, got: %v", err)
+	}
+}
+
+func TestFinish(t *testing.T) {
+	exportErr := errors.New("export failed")
+	closeErr := errors.New("disk full")
+
+	tests := []struct {
+		name        string
+		closeErr    error // nil: use a real writer from CreateWriter
+		earlierErr  error
+		wantErr     error
+		wantRemoved bool
+	}{
+		{"success keeps file", nil, nil, nil, false},
+		{"close error is reported and file removed", closeErr, nil, closeErr, true},
+		{"earlier error wins and file removed", closeErr, exportErr, exportErr, true},
+		{"export error with clean close removes file", nil, exportErr, exportErr, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "out.csv.gz")
+			w, err := CreateWriter(OutputConfig{Path: path, Compression: "gzip", Format: "csv"})
+			if err != nil {
+				t.Fatalf("CreateWriter() error = %v", err)
+			}
+			if tt.closeErr != nil {
+				real := w.(*compositeWriteCloser)
+				w = &compositeWriteCloser{Writer: real.Writer, path: real.path, closeFunc: func() error {
+					real.Close()
+					return tt.closeErr
+				}}
+			}
+			w.Write([]byte("a,b\n"))
+
+			err = tt.earlierErr
+			Finish(w, &err)
+
+			if !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {
+				t.Errorf("err = %v, want %v", err, tt.wantErr)
+			}
+			_, statErr := os.Stat(path)
+			if removed := os.IsNotExist(statErr); removed != tt.wantRemoved {
+				t.Errorf("file removed = %v, want %v", removed, tt.wantRemoved)
+			}
+		})
+	}
+}
+
+func TestFinish_KeepsNonRegularFile(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "target.csv")
+	link := filepath.Join(t.TempDir(), "link.csv")
+	if err := os.WriteFile(target, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks not available: %v", err)
+	}
+
+	w, err := CreateWriter(OutputConfig{Path: link, Compression: "none", Format: "csv"})
+	if err != nil {
+		t.Fatalf("CreateWriter() error = %v", err)
+	}
+	err = errors.New("export failed")
+	Finish(w, &err)
+
+	if _, err := os.Lstat(link); err != nil {
+		t.Errorf("symlink was removed: %v", err)
 	}
 }
 

@@ -31,7 +31,7 @@ func (e *templateExporter) Export(rows pgx.Rows, options ExportOptions) (int, er
 }
 
 // full mode (load all rows)
-func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 
 	start := time.Now()
 	logger.Debug("Preparing TEMPLATE (full mode) export (compression=%s)", options.Compression)
@@ -94,7 +94,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 	if err != nil {
 		return rowCount, err
 	}
-	defer writer.Close()
+	defer output.Finish(writer, &err)
 
 	data := map[string]interface{}{
 		"Rows":        allRows,
@@ -121,7 +121,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (int
 }
 
 // Streaming mode
-func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 
 	start := time.Now()
 	logger.Debug("Preparing TEMPLATE (streaming mode) export (compression=%s)", options.Compression)
@@ -150,7 +150,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 	if err != nil {
 		return 0, err
 	}
-	defer writer.Close()
+	defer output.Finish(writer, &err)
 
 	fields := rows.FieldDescriptions()
 	keys := make([]string, len(fields))

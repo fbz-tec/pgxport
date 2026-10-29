@@ -27,6 +27,7 @@ func newZstdWriter(path string) (io.WriteCloser, error) {
 		return nil, fmt.Errorf("error creating zstd writer: %w", err)
 	}
 	return &compositeWriteCloser{
+		path:   path,
 		Writer: zstdWriter,
 		closeFunc: func() error {
 			logger.Debug("Finalizing zstd compression for: %s", path)

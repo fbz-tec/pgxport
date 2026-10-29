@@ -30,6 +30,7 @@ func newZipWriter(path, format string) (io.WriteCloser, error) {
 		return nil, fmt.Errorf("error creating zip entry: %w", err)
 	}
 	return &compositeWriteCloser{
+		path:   fixedPath,
 		Writer: entryWriter,
 		closeFunc: func() error {
 			logger.Debug("Finalizing zip archive: %s", fixedPath)

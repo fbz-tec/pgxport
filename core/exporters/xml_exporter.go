@@ -15,7 +15,7 @@ import (
 type xmlExporter struct{}
 
 // Export writes query results to an XML file with buffered I/O.
-func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 
 	start := time.Now()
 	logger.Debug("Preparing XML export (indent=2 spaces, compression=%s)", options.Compression)
@@ -29,7 +29,7 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	// Encode to XML with indentation
 	encoder := xml.NewEncoder(writerCloser)
