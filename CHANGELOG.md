@@ -21,6 +21,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - **Duplicate column names no longer lose data in JSON, YAML and template exports.**
   With two columns of the same name, common with `SELECT *` over a `JOIN`, the second value silently replaced the first one: `SELECT o.id, o.total, c.id ...` exported the customer id in place of the order id and dropped a column. Repeated names now get a suffix (`id`, `id_2`, `id_3`); CSV and XML keep the original names.
 - **The `json` and `jsonPretty` template functions work on rows.** `{{json .}}` returned `{}` for a row (and for `.Rows`); rows are now written as JSON objects with keys in column order.
+- **The completion message shows the file actually written.** With compression, `Export completed: ... -> users.csv` (and the "0 rows" warning) named a file that did not exist: the real file was `users.csv.gz`, `.zst`, `.lz4` or `users.zip`.
 - **Error messages containing `%` are no longer garbled.** A parameter error was printed with its own text as a format string, so `--xml-row-tag "row%d"` was reported as `row%!d(MISSING)`.
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
   They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.

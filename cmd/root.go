@@ -9,6 +9,7 @@ import (
 	"github.com/fbz-tec/pgxport/core/config"
 	"github.com/fbz-tec/pgxport/core/db"
 	"github.com/fbz-tec/pgxport/core/exporters"
+	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/core/validation"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/fbz-tec/pgxport/internal/version"
@@ -320,7 +321,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("export failed: %w", err)
 	}
 
-	return handleExportResult(rowCount, outputPath)
+	// Compression may change the file name (users.csv.gz, users.zip): report the real one
+	return handleExportResult(rowCount, output.FinalPath(outputPath, compression))
 }
 
 // validateExportParams validates all export parameters before execution.
