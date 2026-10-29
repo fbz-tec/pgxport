@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -463,15 +464,25 @@ func UserTimeZoneFormat(userTimefmt string, timeZone string) (string, *time.Loca
 		return layout, time.Local
 	}
 
-	loc, err := time.LoadLocation(timeZone)
-
-	if err != nil {
-		log.Printf("Warning: Invalid timezone %q, using local time: %v", timeZone, err)
-		return layout, time.Local
+	// Called for every timestamptz cell: time.LoadLocation reads the zone file from disk
+	// on each call (~11µs), so each name is loaded once. nil marks an invalid name.
+	cached, ok := locations.Load(timeZone)
+	if !ok {
+		loc, err := time.LoadLocation(timeZone)
+		if err != nil {
+			log.Printf("Warning: Invalid timezone %q, using local time: %v", timeZone, err)
+			loc = nil
+		}
+		cached, _ = locations.LoadOrStore(timeZone, loc)
 	}
-
-	return layout, loc
+	if loc := cached.(*time.Location); loc != nil {
+		return layout, loc
+	}
+	return layout, time.Local
 }
+
+// locations caches loaded time zones by name (see UserTimeZoneFormat).
+var locations sync.Map
 
 // ConvertUserTimeFormat converts a user-friendly time format (e.g., "yyyy-MM-dd HH:mm:ss")
 // to Go's time layout format (e.g., "2006-01-02 15:04:05").

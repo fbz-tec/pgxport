@@ -906,6 +906,31 @@ func BenchmarkFormatCSVValue(b *testing.B) {
 			FormatCSVValue(3.14159, pgtype.Float4OID, "", "")
 		}
 	})
+
+	b.Run("timestamptz with time zone", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			FormatCSVValue(testDate, pgtype.TimestamptzOID, "yyyy-MM-dd HH:mm:ss", "Europe/Paris")
+		}
+	})
+}
+
+// TestUserTimeZoneFormatCachesLocation checks that a time zone is loaded once and reused,
+// and that an invalid name keeps falling back to the local time zone.
+func TestUserTimeZoneFormatCachesLocation(t *testing.T) {
+	_, first := UserTimeZoneFormat("yyyy", "Asia/Tokyo")
+	_, second := UserTimeZoneFormat("yyyy", "Asia/Tokyo")
+	if first != second {
+		t.Error("time zone was loaded again instead of reused from the cache")
+	}
+	if first.String() != "Asia/Tokyo" {
+		t.Errorf("location = %s, want Asia/Tokyo", first)
+	}
+
+	for range 2 {
+		if _, loc := UserTimeZoneFormat("yyyy", "Not/AZone"); loc != time.Local {
+			t.Errorf("invalid zone: location = %s, want Local", loc)
+		}
+	}
 }
 
 func BenchmarkFormatSQLValue(b *testing.B) {
