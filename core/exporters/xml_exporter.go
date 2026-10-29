@@ -80,32 +80,10 @@ func (e *xmlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 		for i, field := range keys {
 			elem := xml.StartElement{Name: xml.Name{Local: field}}
 			val := formatters.FormatXMLValue(values[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
-			if val == "" {
-				if err := encoder.EncodeToken(xml.StartElement{Name: elem.Name}); err != nil {
-					return rowCount, fmt.Errorf("error opening <%s>: %w", field, err)
-				}
-				if err := encoder.EncodeToken(xml.EndElement{Name: elem.Name}); err != nil {
-					return rowCount, fmt.Errorf("error closing </%s>: %w", field, err)
-				}
-				continue
+			// JSON and arrays are text like any other value: they must stay inside the element and be escaped.
+			if err := encoder.EncodeElement(val, elem); err != nil {
+				return rowCount, fmt.Errorf("error encoding field %s: %w", field, err)
 			}
-			isJSONLike := len(val) > 0 && (val[0] == '{' || val[0] == '[')
-			if isJSONLike {
-				if err := encoder.EncodeToken(elem); err != nil {
-					return rowCount, fmt.Errorf("error opening <%s>: %w", field, err)
-				}
-				if _, err := writerCloser.Write([]byte(val)); err != nil {
-					return rowCount, fmt.Errorf("error writing raw value for <%s>: %w", field, err)
-				}
-				if err := encoder.EncodeToken(xml.EndElement{Name: elem.Name}); err != nil {
-					return rowCount, fmt.Errorf("error closing </%s>: %w", field, err)
-				}
-			} else {
-				if err := encoder.EncodeElement(val, elem); err != nil {
-					return rowCount, fmt.Errorf("error encoding field %s: %w", field, err)
-				}
-			}
-
 		}
 
 		// End </row>

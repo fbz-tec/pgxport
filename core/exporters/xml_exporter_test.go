@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"os"
 	"path/filepath"
@@ -479,6 +480,73 @@ func TestWriteXMLValidXML(t *testing.T) {
 
 	if len(results.Rows) != 1 {
 		t.Errorf("Expected 1 row, got %d", len(results.Rows))
+	}
+}
+
+// TestWriteXMLJSONAndArrays checks that JSON, arrays and text starting with { or [
+// stay inside their own element and are escaped, so a standard XML reader gets them back.
+func TestWriteXMLJSONAndArrays(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	rows, err := conn.Query(context.Background(), `SELECT 1 AS id, '{"note":"A & B <ok>"}'::jsonb AS meta,
+		ARRAY['x&y','z'] AS tags, '{draft} R&D' AS title, '[URGENT] <invoice>' AS subject`)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.xml")
+	exporter, err := Get(FormatXML)
+	if err != nil {
+		t.Fatalf("Failed to get xml exporter: %v", err)
+	}
+	_, err = exporter.Export(rows, ExportOptions{
+		Format:         FormatXML,
+		OutputPath:     outputPath,
+		Compression:    "none",
+		XmlRootElement: "results",
+		XmlRowElement:  "row",
+	})
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	var doc struct {
+		Rows []struct {
+			ID      string `xml:"id"`
+			Meta    string `xml:"meta"`
+			Tags    string `xml:"tags"`
+			Title   string `xml:"title"`
+			Subject string `xml:"subject"`
+		} `xml:"row"`
+	}
+	if err := xml.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("Invalid XML: %v\n%s", err, content)
+	}
+	if len(doc.Rows) != 1 {
+		t.Fatalf("Expected 1 row, got %d\n%s", len(doc.Rows), content)
+	}
+
+	got := doc.Rows[0]
+	var meta struct{ Note string }
+	if err := json.Unmarshal([]byte(got.Meta), &meta); err != nil || meta.Note != "A & B <ok>" {
+		t.Errorf("<meta> = %q is not the original JSON (err %v)\n%s", got.Meta, err, content)
+	}
+	want := map[string][2]string{
+		"id":      {got.ID, "1"},
+		"tags":    {got.Tags, "{x&y,z}"},
+		"title":   {got.Title, "{draft} R&D"},
+		"subject": {got.Subject, "[URGENT] <invoice>"},
+	}
+	for name, v := range want {
+		if v[0] != v[1] {
+			t.Errorf("<%s> = %q, want %q\n%s", name, v[0], v[1], content)
+		}
 	}
 }
 
