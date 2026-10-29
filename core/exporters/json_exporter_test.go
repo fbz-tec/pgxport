@@ -399,13 +399,15 @@ func TestWriteJSONDataTypes(t *testing.T) {
 	}
 }
 
-// TestWriteJSONNumericExact checks that NUMERIC keeps every digit and that NaN/Infinity no longer abort the export.
+// TestWriteJSONNumericExact checks that NUMERIC and floats keep every digit and that
+// NaN/Infinity no longer abort the export.
 func TestWriteJSONNumericExact(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	rows, err := conn.Query(context.Background(),
-		"SELECT 12345678901234567.89::numeric AS big, 'NaN'::numeric AS nan, 'Infinity'::numeric AS inf")
+		`SELECT 12345678901234567.89::numeric AS big, 'NaN'::numeric AS nan, 'Infinity'::numeric AS inf,
+		0.1::float8 + 0.2 AS f8, 0.1::real AS f4, 'NaN'::float8 AS f8nan, '-Infinity'::real AS f4inf`)
 	if err != nil {
 		t.Fatalf("Failed to execute query: %v", err)
 	}
@@ -428,7 +430,8 @@ func TestWriteJSONNumericExact(t *testing.T) {
 	if err := json.Unmarshal(content, &result); err != nil {
 		t.Fatalf("Invalid JSON: %v\n%s", err, content)
 	}
-	want := map[string]string{"big": "12345678901234567.89", "nan": `"NaN"`, "inf": `"Infinity"`}
+	want := map[string]string{"big": "12345678901234567.89", "nan": `"NaN"`, "inf": `"Infinity"`,
+		"f8": "0.30000000000000004", "f4": "0.1", "f8nan": `"NaN"`, "f4inf": `"-Infinity"`}
 	for k, v := range want {
 		if string(result[0][k]) != v {
 			t.Errorf("%s = %s, want %s", k, result[0][k], v)

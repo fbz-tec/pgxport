@@ -369,13 +369,33 @@ func TestWriteCSVDataTypes(t *testing.T) {
 	}
 }
 
-// TestWriteCSVByteaMatchesCopy checks that bytea is written in hex like PostgreSQL COPY,
+// TestWriteCSVMatchesCopy checks that values are written as PostgreSQL COPY writes them,
 // so the same export gives the same file with or without --with-copy.
-func TestWriteCSVByteaMatchesCopy(t *testing.T) {
+func TestWriteCSVMatchesCopy(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	query := "SELECT decode('00415c27ff', 'hex') AS b, decode('', 'hex') AS empty"
+	tests := map[string]string{
+		"bytea in hex": "SELECT decode('00415c27ff', 'hex') AS b, decode('', 'hex') AS empty",
+		"float8 shortest exact text and special values": `SELECT 0.1::float8 + 0.2 AS a, 1.2345678901234567e300::float8 AS b,
+			'NaN'::float8 AS c, 'Infinity'::float8 AS d, '-Infinity'::float8 AS e, '-0'::float8 AS f,
+			100000000::float8 AS g, 1e15::float8 AS h, 123456789012345::float8 AS i, 0.0001::float8 AS j, 0.00001::float8 AS k`,
+		"real shortest exact text": `SELECT 0.1::real AS a, 3.14159::real AS b, 3.4028235e38::real AS c,
+			100000::real AS d, 1000000::real AS e, 'NaN'::real AS f`,
+	}
+	for name, query := range tests {
+		t.Run(name, func(t *testing.T) {
+			standard, copied := exportCSVBothModes(t, conn, query)
+			if standard != copied {
+				t.Errorf("standard export differs from COPY:\nstandard: %q\ncopy:     %q", standard, copied)
+			}
+		})
+	}
+}
+
+// exportCSVBothModes exports query to CSV in standard mode and in COPY mode.
+func exportCSVBothModes(t *testing.T, conn *pgx.Conn, query string) (standard, copied string) {
+	t.Helper()
 	options := ExportOptions{Format: FormatCSV, Compression: "none", Delimiter: ','}
 	exporter, err := Get(FormatCSV)
 	if err != nil {
@@ -387,21 +407,19 @@ func TestWriteCSVByteaMatchesCopy(t *testing.T) {
 		t.Fatalf("Failed to execute query: %v", err)
 	}
 	options.OutputPath = filepath.Join(t.TempDir(), "standard.csv")
-	if _, err := exporter.Export(rows, options); err != nil {
+	_, err = exporter.Export(rows, options)
+	rows.Close()
+	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
-	rows.Close()
-	standard, _ := os.ReadFile(options.OutputPath)
+	s, _ := os.ReadFile(options.OutputPath)
 
 	options.OutputPath = filepath.Join(t.TempDir(), "copy.csv")
 	if _, err := exporter.(CopyCapable).ExportCopy(conn, query, options); err != nil {
 		t.Fatalf("ExportCopy() error: %v", err)
 	}
-	copied, _ := os.ReadFile(options.OutputPath)
-
-	if string(standard) != string(copied) {
-		t.Errorf("standard export differs from COPY:\nstandard: %q\ncopy:     %q", standard, copied)
-	}
+	c, _ := os.ReadFile(options.OutputPath)
+	return string(s), string(c)
 }
 
 // TestCopyModeAcceptsSameQueriesAsStandard runs the same chain as the CLI
@@ -419,38 +437,13 @@ func TestCopyModeAcceptsSameQueriesAsStandard(t *testing.T) {
 		"SELECT 1 AS n; -- end of report\n",
 		"SELECT ';' AS s; /* trailing */",
 	}
-	exporter, err := Get(FormatCSV)
-	if err != nil {
-		t.Fatalf("Failed to get csv exporter: %v", err)
-	}
-
 	for _, raw := range queries {
 		t.Run(raw, func(t *testing.T) {
 			if err := validation.ValidateQuery(raw); err != nil {
 				t.Fatalf("ValidateQuery() error: %v", err)
 			}
-			query := validation.TrimTerminator(raw)
-			options := ExportOptions{Format: FormatCSV, Compression: "none", Delimiter: ','}
-
-			rows, err := conn.Query(context.Background(), query)
-			if err != nil {
-				t.Fatalf("Failed to execute query: %v", err)
-			}
-			options.OutputPath = filepath.Join(t.TempDir(), "standard.csv")
-			_, err = exporter.Export(rows, options)
-			rows.Close()
-			if err != nil {
-				t.Fatalf("Export() error: %v", err)
-			}
-			standard, _ := os.ReadFile(options.OutputPath)
-
-			options.OutputPath = filepath.Join(t.TempDir(), "copy.csv")
-			if _, err := exporter.(CopyCapable).ExportCopy(conn, query, options); err != nil {
-				t.Fatalf("ExportCopy() error: %v", err)
-			}
-			copied, _ := os.ReadFile(options.OutputPath)
-
-			if string(standard) != string(copied) {
+			standard, copied := exportCSVBothModes(t, conn, validation.TrimTerminator(raw))
+			if standard != copied {
 				t.Errorf("COPY output differs:\nstandard: %q\ncopy:     %q", standard, copied)
 			}
 		})

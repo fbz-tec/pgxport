@@ -12,6 +12,8 @@ Bug-fix release focused on data correctness: exported files now always contain e
   Single quotes inside `json`/`jsonb` values and array elements were written unescaped, producing invalid SQL (e.g. `O'Brien`) or allowing a stored value to inject SQL when the export is replayed. Array elements are now quoted, and `NULL` elements are written as `NULL` instead of `<nil>`.
 - **NUMERIC values keep every digit in all formats.**
   `numeric` was converted to a 64-bit float, so `12345678901234567.89` was exported as `1.23456789012346e+16`. Values are now written exactly as PostgreSQL stores them, including trailing zeros (`1234.50`).
+- **`float8` and `real` values keep their exact value.**
+  Floats were printed with 15 significant digits: `0.1 + 0.2` was exported as `0.3` instead of `0.30000000000000004`, and `real` values gained spurious digits (`0.1` became `0.100000001490116`). Floats are now written as PostgreSQL writes them, the same as `--with-copy`. `float8`/`real` `NaN` and `±Infinity` no longer abort JSON exports or produce invalid SQL: they are written as strings in JSON (`"NaN"`) and as `'NaN'::float8` in SQL, and `-0` keeps its sign.
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
   They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.
 - **`numeric[]` arrays are exported correctly** instead of as internal Go structures.

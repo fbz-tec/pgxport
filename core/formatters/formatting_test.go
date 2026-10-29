@@ -2,6 +2,7 @@ package formatters
 
 import (
 	"encoding/json"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -352,7 +353,7 @@ func TestFormatCSVValue(t *testing.T) {
 			valueType: pgtype.Float4OID,
 			timefmt:   "",
 			timezone:  "",
-			expected:  "3.1415901184082",
+			expected:  "3.14159",
 		},
 		{
 			name:      "Float64 formatting",
@@ -619,13 +620,13 @@ func TestFormatSQLValue(t *testing.T) {
 			name:      "float32 value",
 			value:     float32(3.14159),
 			valueType: pgtype.Float4OID,
-			expected:  "3.1415901184082",
+			expected:  "3.14159",
 		},
 		{
 			name:      "float64 value",
 			value:     float64(2.718281828459045),
 			valueType: pgtype.Float8OID,
-			expected:  "2.71828182845905",
+			expected:  "2.718281828459045",
 		},
 		{
 			name:      "negative int",
@@ -1051,4 +1052,33 @@ func BenchmarkQuoteIdent(b *testing.B) {
 			QuoteIdent(`table"name`)
 		}
 	})
+}
+
+// TestFloatText checks floats are written like PostgreSQL writes them (see also
+// TestWriteCSVMatchesCopy, which compares with PostgreSQL itself).
+func TestFloatText(t *testing.T) {
+	tenth := 0.1
+	tests := []struct {
+		val     interface{}
+		csv     string
+		sqlText string
+	}{
+		{tenth + 0.2, "0.30000000000000004", "0.30000000000000004"}, // a variable: constant 0.1+0.2 is exactly 0.3
+		{float32(0.1), "0.1", "0.1"},
+		{1e8, "100000000", "100000000"},
+		{1e15, "1e+15", "1e+15"},
+		{0.00001, "1e-05", "1e-05"},
+		{float32(1e6), "1e+06", "1e+06"},
+		{math.NaN(), "NaN", "'NaN'::float8"},
+		{math.Inf(-1), "-Infinity", "'-Infinity'::float8"},
+		{math.Copysign(0, -1), "-0", "'-0'::float8"},
+	}
+	for _, tt := range tests {
+		if got := FormatCSVValue(tt.val, pgtype.Float8OID, "", ""); got != tt.csv {
+			t.Errorf("CSV %v = %q, want %q", tt.val, got, tt.csv)
+		}
+		if got := FormatSQLValue(tt.val, pgtype.Float8OID); got != tt.sqlText {
+			t.Errorf("SQL %v = %q, want %q", tt.val, got, tt.sqlText)
+		}
+	}
 }
