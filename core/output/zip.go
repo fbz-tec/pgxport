@@ -47,17 +47,20 @@ func newZipWriter(path, entryName string) (io.WriteCloser, error) {
 	}, nil
 }
 
+// determineZipEntryName returns the name of the file inside the archive: the output file
+// name as the user wrote it, without .zip and with the format extension. Extensions are
+// compared case-insensitively, but the name keeps its case (Report_Q1.csv).
 func determineZipEntryName(outputPath, format string) string {
-	base := filepath.Base(outputPath)
-	lowerBase := strings.ToLower(base)
-
-	name := strings.TrimSuffix(lowerBase, ".zip")
+	name := filepath.Base(outputPath)
+	if strings.HasSuffix(strings.ToLower(name), ".zip") {
+		name = name[:len(name)-len(".zip")]
+	}
 
 	if name == "" {
 		name = "export"
 	}
 
-	if !strings.HasSuffix(name, "."+format) && format != "template" {
+	if !strings.HasSuffix(strings.ToLower(name), "."+format) && format != "template" {
 		name = fmt.Sprintf("%s.%s", name, format)
 	}
 

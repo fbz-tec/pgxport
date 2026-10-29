@@ -22,6 +22,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
   With two columns of the same name, common with `SELECT *` over a `JOIN`, the second value silently replaced the first one: `SELECT o.id, o.total, c.id ...` exported the customer id in place of the order id and dropped a column. Repeated names now get a suffix (`id`, `id_2`, `id_3`); CSV and XML keep the original names.
 - **The `json` and `jsonPretty` template functions work on rows.** `{{json .}}` returned `{}` for a row (and for `.Rows`); rows are now written as JSON objects with keys in column order.
 - **A `DB_DRIVER` environment variable no longer breaks the connection.** Its value was used as the connection URL scheme, so anything other than `postgres` or `postgresql` (e.g. `mysql`, `pgx`, or `Postgres`, often set by other tools) failed with an unclear parse error. pgxport only connects to PostgreSQL and now ignores it.
+- **The file inside a zip archive keeps the case of its name.** `-o Report_Q1.csv -z zip` created `Report_Q1.zip` containing `report_q1.csv`; it now contains `Report_Q1.csv`.
 - **The completion message shows the file actually written.** With compression, `Export completed: ... -> users.csv` (and the "0 rows" warning) named a file that did not exist: the real file was `users.csv.gz`, `.zst`, `.lz4` or `users.zip`.
 - **Error messages containing `%` are no longer garbled.** A parameter error was printed with its own text as a format string, so `--xml-row-tag "row%d"` was reported as `row%!d(MISSING)`.
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
@@ -73,6 +74,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
 - A query that writes data now fails at execution with a PostgreSQL error (`cannot execute ... in a read-only transaction`) instead of being exported. Non-`SELECT`/`WITH` statements are reported as `unsupported SQL command` instead of `forbidden SQL command detected`.
 - The undocumented `DB_DRIVER` setting is ignored.
+- In zip exports, the file inside the archive keeps the upper-case letters of the output name (`Report_Q1.csv` instead of `report_q1.csv`).
 - In JSON, YAML and template exports, a repeated column name now appears as `name_2`, `name_3`… (template `.Columns` uses the same names).
 - In XML exports, columns whose names are not valid XML names get a different element name (see above). Two columns can end up with the same element name (`"a b"` and `"a_b"` both become `<a_b>`); the document stays valid and column order is kept.
 
