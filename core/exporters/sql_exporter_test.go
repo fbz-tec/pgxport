@@ -490,56 +490,79 @@ func TestWriteSQLEscaping(t *testing.T) {
 }
 
 // TestWriteSQLRoundTrip runs the generated INSERT back into PostgreSQL
-// and checks that tricky JSON and array values come back unchanged.
+// and checks that tricky values come back unchanged.
 func TestWriteSQLRoundTrip(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	ctx := context.Background()
-	query := `SELECT '{"name":"O''Brien"}'::jsonb AS meta,
-		ARRAY['a,b', 'say "hi"', 'C:\dir', NULL, 'x''); DROP TABLE users; --']::text[] AS tags`
-
-	if _, err := conn.Exec(ctx, "CREATE TEMP TABLE roundtrip (meta jsonb, tags text[])"); err != nil {
-		t.Fatalf("Failed to create temp table: %v", err)
+	tests := []struct {
+		name    string
+		columns string
+		query   string
+	}{
+		{
+			name:    "json and text array escaping",
+			columns: "meta jsonb, tags text[]",
+			query: `SELECT '{"name":"O''Brien"}'::jsonb AS meta,
+		ARRAY['a,b', 'say "hi"', 'C:\dir', NULL, 'x''); DROP TABLE users; --']::text[] AS tags`,
+		},
+		{
+			name:    "numeric precision and special values",
+			columns: "big numeric, scaled numeric(10,2), nan numeric, inf numeric, arr numeric[]",
+			query: `SELECT 12345678901234567.89::numeric AS big, 1234.50::numeric(10,2) AS scaled,
+		'NaN'::numeric AS nan, '-Infinity'::numeric AS inf, ARRAY[1.50, 'NaN', NULL]::numeric[] AS arr`,
+		},
 	}
 
-	rows, err := conn.Query(ctx, query)
-	if err != nil {
-		t.Fatalf("Failed to execute query: %v", err)
-	}
-	defer rows.Close()
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			table := fmt.Sprintf("roundtrip_%d", i)
 
-	outputPath := filepath.Join(t.TempDir(), "roundtrip.sql")
-	exporter, err := Get(FormatSQL)
-	if err != nil {
-		t.Fatalf("Failed to get sql exporter: %v", err)
-	}
-	options := ExportOptions{
-		Format:          FormatSQL,
-		TableName:       "roundtrip",
-		Compression:     "none",
-		RowPerStatement: 1,
-		OutputPath:      outputPath,
-	}
-	if _, err := exporter.Export(rows, options); err != nil {
-		t.Fatalf("Export() error: %v", err)
-	}
+			if _, err := conn.Exec(ctx, fmt.Sprintf("CREATE TEMP TABLE %s (%s)", table, tt.columns)); err != nil {
+				t.Fatalf("Failed to create temp table: %v", err)
+			}
 
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read file: %v", err)
-	}
-	if _, err := conn.Exec(ctx, string(content)); err != nil {
-		t.Fatalf("Generated SQL failed to run: %v\n%s", err, content)
-	}
+			rows, err := conn.Query(ctx, tt.query)
+			if err != nil {
+				t.Fatalf("Failed to execute query: %v", err)
+			}
+			defer rows.Close()
 
-	var same bool
-	err = conn.QueryRow(ctx, "SELECT (r.meta, r.tags) IS NOT DISTINCT FROM (q.meta, q.tags) FROM roundtrip r, ("+query+") q").Scan(&same)
-	if err != nil {
-		t.Fatalf("Failed to compare rows: %v", err)
-	}
-	if !same {
-		t.Errorf("Reloaded row differs from source. Generated SQL:\n%s", content)
+			outputPath := filepath.Join(t.TempDir(), "roundtrip.sql")
+			exporter, err := Get(FormatSQL)
+			if err != nil {
+				t.Fatalf("Failed to get sql exporter: %v", err)
+			}
+			options := ExportOptions{
+				Format:          FormatSQL,
+				TableName:       table,
+				Compression:     "none",
+				RowPerStatement: 1,
+				OutputPath:      outputPath,
+			}
+			if _, err := exporter.Export(rows, options); err != nil {
+				t.Fatalf("Export() error: %v", err)
+			}
+
+			content, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatalf("Failed to read file: %v", err)
+			}
+			if _, err := conn.Exec(ctx, string(content)); err != nil {
+				t.Fatalf("Generated SQL failed to run: %v\n%s", err, content)
+			}
+
+			// Compare the text form of the whole row, so numeric scale (1234.50) counts too.
+			var same bool
+			err = conn.QueryRow(ctx, fmt.Sprintf("SELECT (SELECT r::text FROM %s r) = (SELECT q::text FROM (%s) q)", table, tt.query)).Scan(&same)
+			if err != nil {
+				t.Fatalf("Failed to compare rows: %v", err)
+			}
+			if !same {
+				t.Errorf("Reloaded row differs from source. Generated SQL:\n%s", content)
+			}
+		})
 	}
 }
 
