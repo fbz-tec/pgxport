@@ -79,7 +79,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err e
 		//format values to strings
 		record := make([]string, len(values))
 		for i, v := range values {
-			record[i] = formatters.FormatCSVValue(v, fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+			record[i] = formatters.FormatTextValue(v, fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
 		}
 
 		if err := writer.Write(record); err != nil {

@@ -49,6 +49,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - **YAML export streams rows instead of keeping the whole result in memory.**
   The YAML document was built in memory and written only after the last row: a 1 million row export (4 columns, 106 MB file) used 12 GB of RAM and could be killed by the system. Rows are now written as they are read, using about 20 MB like the JSON export. The output file is unchanged; an empty result is still written as `[]`.
 
+### 🧹 Internal
+
+- CSV and XML exports share a single value formatter (`FormatTextValue`) instead of two near-identical copies that had to be fixed twice. The unused `formatValue` function and its tests are removed. No change in output.
+
 ### ⚠️ Behavior changes
 
 - When an export fails, the partial output file is now **removed**. Devices and symlinks (e.g. `-o /dev/stdout`) are never removed.
