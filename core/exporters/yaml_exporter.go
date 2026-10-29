@@ -5,12 +5,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/elliotchance/orderedmap/v3"
-	"github.com/fbz-tec/pgxport/core/encoders"
+	"github.com/fbz-tec/pgxport/core/formatters"
 	"github.com/fbz-tec/pgxport/core/output"
 	"github.com/fbz-tec/pgxport/internal/logger"
 	"github.com/fbz-tec/pgxport/internal/ui"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,10 +32,8 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 	}
 	defer output.Finish(writerCloser, &err)
 
-	// Column order
 	fields := rows.FieldDescriptions()
-
-	rowEncoder := encoders.NewOrderedYamlEncoder(options.TimeFormat, options.TimeZone)
+	keys := uniqueColumnNames(fields)
 
 	rowCount := 0
 	var sp *ui.Spinner
@@ -50,16 +48,7 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 			return rowCount, fmt.Errorf("error reading row %d: %w", rowCount+1, err)
 		}
 
-		rowData := orderedmap.NewOrderedMap[string, encoders.DataParams]()
-
-		for i, fd := range fields {
-			rowData.Set(fd.Name, encoders.DataParams{
-				Value:     values[i],
-				ValueType: fd.DataTypeOID,
-			})
-		}
-
-		rowNode, err := rowEncoder.EncodeRow(rowData)
+		rowNode, err := yamlRowNode(keys, fields, values, options)
 		if err != nil {
 			return rowCount, fmt.Errorf("error encoding YAML row %d: %w", rowCount+1, err)
 		}
@@ -96,6 +85,20 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err 
 		rowCount, time.Since(start))
 
 	return rowCount, nil
+}
+
+// yamlRowNode builds one row as a YAML mapping, keys in column order.
+func yamlRowNode(keys []string, fields []pgconn.FieldDescription, values []interface{}, options ExportOptions) (*yaml.Node, error) {
+	row := &yaml.Node{Kind: yaml.MappingNode}
+	for i, key := range keys {
+		valueNode := &yaml.Node{}
+		value := formatters.FormatYAMLValue(values[i], fields[i].DataTypeOID, options.TimeFormat, options.TimeZone)
+		if err := valueNode.Encode(value); err != nil {
+			return nil, err
+		}
+		row.Content = append(row.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: key}, valueNode)
+	}
+	return row, nil
 }
 
 // writeYAML writes node as one YAML document with pgxport's 2-space indentation.

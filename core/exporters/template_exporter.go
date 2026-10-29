@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,10 +50,7 @@ func (e *templateExporter) exportFull(rows pgx.Rows, options ExportOptions) (_ i
 	}
 
 	fields := rows.FieldDescriptions()
-	keys := make([]string, len(fields))
-	for i, f := range fields {
-		keys[i] = string(f.Name)
-	}
+	keys := uniqueColumnNames(fields)
 
 	allRows := []*orderedmap.OrderedMap[string, interface{}]{}
 	rowCount := 0
@@ -153,10 +151,7 @@ func (e *templateExporter) exportStreaming(rows pgx.Rows, options ExportOptions)
 	defer output.Finish(writer, &err)
 
 	fields := rows.FieldDescriptions()
-	keys := make([]string, len(fields))
-	for i, f := range fields {
-		keys[i] = string(f.Name)
-	}
+	keys := uniqueColumnNames(fields)
 
 	generatedAt := time.Now().Format(time.RFC3339)
 
@@ -233,18 +228,22 @@ func defaultTemplateFuncs() template.FuncMap {
 		"hasSuffix": strings.HasSuffix,
 		"printf":    fmt.Sprintf,
 		"json": func(v interface{}) string {
-			b, err := json.Marshal(v)
+			b, err := templateJSON(v)
 			if err != nil {
 				return fmt.Sprintf("ERROR: %v", err)
 			}
 			return string(b)
 		},
 		"jsonPretty": func(v interface{}) string {
-			b, err := json.MarshalIndent(v, "", "  ")
+			b, err := templateJSON(v)
+			var out bytes.Buffer
+			if err == nil {
+				err = json.Indent(&out, b, "", "  ")
+			}
 			if err != nil {
 				return fmt.Sprintf("ERROR: %v", err)
 			}
-			return string(b)
+			return out.String()
 		},
 		"now": time.Now,
 		"formatTime": func(t time.Time, layout string) string {
@@ -286,6 +285,51 @@ func loadTemplateIfExists(path string, required bool, funcs template.FuncMap) (*
 		return nil, fmt.Errorf("failed to parse template %q: %w", path, err)
 	}
 	return tpl, nil
+}
+
+// templateJSON encodes v as JSON for the json/jsonPretty template functions. Rows are
+// ordered maps, which json.Marshal writes as {} (their fields are private): they are
+// written as JSON objects with keys in column order, alone or in a list such as .Rows.
+func templateJSON(v interface{}) ([]byte, error) {
+	switch x := v.(type) {
+	case *orderedmap.OrderedMap[string, interface{}]:
+		var b bytes.Buffer
+		b.WriteByte('{')
+		for k, val := range x.AllFromFront() {
+			if b.Len() > 1 {
+				b.WriteByte(',')
+			}
+			key, err := json.Marshal(k)
+			if err != nil {
+				return nil, err
+			}
+			value, err := templateJSON(val)
+			if err != nil {
+				return nil, err
+			}
+			b.Write(key)
+			b.WriteByte(':')
+			b.Write(value)
+		}
+		b.WriteByte('}')
+		return b.Bytes(), nil
+	case []*orderedmap.OrderedMap[string, interface{}]:
+		var b bytes.Buffer
+		b.WriteByte('[')
+		for i, row := range x {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			item, err := templateJSON(row)
+			if err != nil {
+				return nil, err
+			}
+			b.Write(item)
+		}
+		b.WriteByte(']')
+		return b.Bytes(), nil
+	}
+	return json.Marshal(v)
 }
 
 // buildRow creates an ordered map preserving column order from SQL query

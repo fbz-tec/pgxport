@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elliotchance/orderedmap/v3"
-	"github.com/fbz-tec/pgxport/core/encoders"
 	"github.com/jackc/pgx/v5"
 	"gopkg.in/yaml.v3"
 )
@@ -31,18 +29,14 @@ func TestWriteYAMLStreamingMatchesWholeDocument(t *testing.T) {
 		t.Fatalf("Failed to execute query: %v", err)
 	}
 	fields := rows.FieldDescriptions()
-	rowEncoder := encoders.NewOrderedYamlEncoder(options.TimeFormat, options.TimeZone)
+	keys := uniqueColumnNames(fields)
 	rootSeq := &yaml.Node{Kind: yaml.SequenceNode}
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
 			t.Fatalf("Failed to read row: %v", err)
 		}
-		rowData := orderedmap.NewOrderedMap[string, encoders.DataParams]()
-		for i, fd := range fields {
-			rowData.Set(fd.Name, encoders.DataParams{Value: values[i], ValueType: fd.DataTypeOID})
-		}
-		rowNode, err := rowEncoder.EncodeRow(rowData)
+		rowNode, err := yamlRowNode(keys, fields, values, options)
 		if err != nil {
 			t.Fatalf("Failed to encode row: %v", err)
 		}

@@ -18,6 +18,9 @@ Bug-fix release focused on data correctness: exported files now always contain e
   `time`, `point`, `xml`, `bit`/`varbit`, `macaddr` and range types were written as internal Go structures (a `time` became `{49530123456 true}`, a `tsrange` a list of Go fields), and SQL exports containing them could not be reloaded. They are now written exactly as PostgreSQL writes them (`13:45:30.123456`, `(1.5,2)`, `[2024-01-01,2024-02-01)`), the same as `--with-copy`, in every format.
 - **Arrays keep `NULL` elements and quoting.** In CSV and XML, `NULL` array elements were written as `<nil>` and elements containing commas or quotes were not quoted (`{a,b}` for the single element `"a,b"`). Arrays are now written as PostgreSQL writes them (`{1,NULL,3}`, `{"a,b"}`).
 - **`jsonb` arrays stay JSON in CSV and XML.** A JSON array such as `[1, null]` was written as a PostgreSQL array (`{1,<nil>}`).
+- **Duplicate column names no longer lose data in JSON, YAML and template exports.**
+  With two columns of the same name, common with `SELECT *` over a `JOIN`, the second value silently replaced the first one: `SELECT o.id, o.total, c.id ...` exported the customer id in place of the order id and dropped a column. Repeated names now get a suffix (`id`, `id_2`, `id_3`); CSV and XML keep the original names.
+- **The `json` and `jsonPretty` template functions work on rows.** `{{json .}}` returned `{}` for a row (and for `.Rows`); rows are now written as JSON objects with keys in column order.
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
   They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.
 - **`numeric[]` arrays are exported correctly** instead of as internal Go structures.
@@ -53,6 +56,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 
 - CSV and XML exports share a single value formatter (`FormatTextValue`) instead of two near-identical copies that had to be fixed twice. The unused `formatValue` function and its tests are removed. No change in output.
 - The CSV "slow row streaming" warning and the `avg fetch` figure of the verbose log are removed. The fetch time was measured after the row had arrived, so it was always 0 and the warning never fired; its `--with-copy` advice would also not help when the query itself is slow.
+- The `core/encoders` package is removed: JSON and YAML exports write each row directly in column order instead of building an ordered map per row. Output is unchanged for distinct column names.
 
 ### ⚠️ Behavior changes
 
@@ -63,6 +67,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - `bytea` columns are exported as `\x` + hex in every format. Text stored in a `bytea` column now appears as `\x48656c6c6f` instead of `Hello`.
 - In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
 - A query that writes data now fails at execution with a PostgreSQL error (`cannot execute ... in a read-only transaction`) instead of being exported. Non-`SELECT`/`WITH` statements are reported as `unsupported SQL command` instead of `forbidden SQL command detected`.
+- In JSON, YAML and template exports, a repeated column name now appears as `name_2`, `name_3`… (template `.Columns` uses the same names).
 - In XML exports, columns whose names are not valid XML names get a different element name (see above). Two columns can end up with the same element name (`"a b"` and `"a_b"` both become `<a_b>`); the document stays valid and column order is kept.
 
 ## [v2.0.0] - 2025-01-05
