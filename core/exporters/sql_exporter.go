@@ -16,7 +16,7 @@ import (
 type sqlExporter struct{}
 
 // Export writes query results as SQL INSERT statements.
-func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 
 	start := time.Now()
 	logger.Debug("Preparing SQL export (table=%s, compression=%s, rows-per-statement=%d)",
@@ -30,7 +30,7 @@ func (e *sqlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	fields := rows.FieldDescriptions()
 	columns := make([]string, len(fields))

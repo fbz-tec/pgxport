@@ -23,6 +23,7 @@ func newLz4Writer(path string) (io.WriteCloser, error) {
 	}
 	lz4Writer := lz4.NewWriter(file)
 	return &compositeWriteCloser{
+		path:   path,
 		Writer: lz4Writer,
 		closeFunc: func() error {
 			logger.Debug("Finalizing lz4 compression for: %s", path)

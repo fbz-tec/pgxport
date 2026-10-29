@@ -16,7 +16,7 @@ import (
 type yamlExporter struct{}
 
 // Export writes query results to a YAML file.
-func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 	start := time.Now()
 	logger.Debug("Preparing YAML export (compression=%s)", options.Compression)
 
@@ -29,11 +29,10 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	enc := yaml.NewEncoder(writerCloser)
 	enc.SetIndent(2)
-	defer enc.Close()
 
 	// Root YAML Sequence (the "-" items)
 	rootSeq := &yaml.Node{
@@ -99,6 +98,9 @@ func (e *yamlExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	// Encode final YAML sequence
 	if err := enc.Encode(rootSeq); err != nil {
 		return rowCount, fmt.Errorf("error writing YAML: %w", err)
+	}
+	if err := enc.Close(); err != nil {
+		return rowCount, fmt.Errorf("error finalizing YAML: %w", err)
 	}
 	sp2.Stop("Completed!")
 

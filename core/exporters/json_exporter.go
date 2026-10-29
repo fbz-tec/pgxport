@@ -15,7 +15,7 @@ import (
 type jsonExporter struct{}
 
 // Export writes query results to a JSON file with buffered I/O.
-func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 	start := time.Now()
 	logger.Debug("Preparing JSON export (indent=2 spaces, compression=%s)", options.Compression)
 
@@ -28,7 +28,7 @@ func (e *jsonExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	// Write opening bracket
 	if _, err := writerCloser.Write([]byte("[\n")); err != nil {

@@ -17,7 +17,7 @@ import (
 type csvExporter struct{}
 
 // Export writes query results to a CSV file with buffered I/O.
-func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 	start := time.Now()
 
 	logger.Debug("Preparing CSV export (delimiter=%q, noHeader=%v, compression=%s)",
@@ -33,7 +33,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 		return 0, err
 	}
 
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	writer := csv.NewWriter(writerCloser)
 	writer.Comma = options.Delimiter
@@ -136,7 +136,7 @@ func (e *csvExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) 
 
 // ExportCopy uses PostgreSQL COPY command for high-performance CSV export.
 // This method is significantly faster than standard Export for large datasets.
-func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOptions) (int, error) {
+func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOptions) (_ int, err error) {
 
 	start := time.Now()
 	logger.Debug("Starting PostgreSQL COPY export (noHeader=%v, compression=%s)", options.NoHeader, options.Compression)
@@ -151,7 +151,7 @@ func (e *csvExporter) ExportCopy(conn *pgx.Conn, query string, options ExportOpt
 		return 0, err
 	}
 
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	copySql := fmt.Sprintf("COPY (%s) TO STDOUT WITH (FORMAT csv, HEADER %t, DELIMITER '%c')", query, !options.NoHeader, options.Delimiter)
 

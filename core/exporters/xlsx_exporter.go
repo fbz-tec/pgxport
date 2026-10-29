@@ -16,7 +16,7 @@ type xlsxExporter struct{}
 
 // Export writes query results to an Excel XLSX file.
 // Automatically creates multiple sheets if the row count exceeds Excel's maximum (1,048,576 rows per sheet).
-func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error) {
+func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (_ int, err error) {
 
 	const maxRows = 1_048_576 // Maximum rows in an XLSX sheet
 
@@ -72,7 +72,6 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	}
 
 	var sw *excelize.StreamWriter
-	var err error
 	var currentRow int
 	sheetIndex := 1
 
@@ -148,7 +147,7 @@ func (e *xlsxExporter) Export(rows pgx.Rows, options ExportOptions) (int, error)
 	if err != nil {
 		return rowCount, err
 	}
-	defer writerCloser.Close()
+	defer output.Finish(writerCloser, &err)
 
 	if err := f.Write(writerCloser); err != nil {
 		return rowCount, fmt.Errorf("error writing Excel file: %w", err)
