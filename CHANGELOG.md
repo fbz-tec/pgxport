@@ -21,6 +21,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - **Duplicate column names no longer lose data in JSON, YAML and template exports.**
   With two columns of the same name, common with `SELECT *` over a `JOIN`, the second value silently replaced the first one: `SELECT o.id, o.total, c.id ...` exported the customer id in place of the order id and dropped a column. Repeated names now get a suffix (`id`, `id_2`, `id_3`); CSV and XML keep the original names.
 - **The `json` and `jsonPretty` template functions work on rows.** `{{json .}}` returned `{}` for a row (and for `.Rows`); rows are now written as JSON objects with keys in column order.
+- **Error messages containing `%` are no longer garbled.** A parameter error was printed with its own text as a format string, so `--xml-row-tag "row%d"` was reported as `row%!d(MISSING)`.
 - **NUMERIC `NaN` and `Infinity` no longer break exports.**
   They aborted JSON, YAML and template exports and produced invalid SQL. They are now written as strings in JSON/YAML (`"NaN"`) and as `'NaN'::numeric` in SQL.
 - **`numeric[]` arrays are exported correctly** instead of as internal Go structures.
@@ -57,6 +58,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - CSV and XML exports share a single value formatter (`FormatTextValue`) instead of two near-identical copies that had to be fixed twice. The unused `formatValue` function and its tests are removed. No change in output.
 - The CSV "slow row streaming" warning and the `avg fetch` figure of the verbose log are removed. The fetch time was measured after the row had arrived, so it was always 0 and the warning never fired; its `--with-copy` advice would also not help when the query itself is slow.
 - The `core/encoders` package is removed: JSON and YAML exports write each row directly in column order instead of building an ordered map per row. Output is unchanged for distinct column names.
+- The single-implementation interfaces `db.Store` and `logger.Logger` are removed, with the unused `GetLogger`, `SetOutput` and `IsQuiet`. Without the interface, `go vet` now checks the format strings passed to the logger.
 
 ### ⚠️ Behavior changes
 

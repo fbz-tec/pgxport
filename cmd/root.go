@@ -137,14 +137,14 @@ func init() {
 	rootCmd.Flags().BoolVarP(&progressBar, "progress", "", false, "Show a progress bar during export (TTY only)")
 
 	if err := rootCmd.MarkFlagRequired("output"); err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err)
 		os.Exit(1)
 	}
 
 	rootCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		logger.Debug("Validating export parameters")
 		if err := validateExportParams(); err != nil {
-			logger.Error(err.Error())
+			logger.Error("%s", err)
 			os.Exit(1)
 		}
 		logger.Debug("Export parameters validated successfully")

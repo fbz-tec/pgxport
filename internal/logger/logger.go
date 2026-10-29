@@ -10,21 +10,7 @@ import (
 	"golang.org/x/term"
 )
 
-// Logger interface defines the logging methods
-type Logger interface {
-	Info(format string, args ...any)
-	Debug(format string, args ...any)
-	Success(format string, args ...any)
-	Warn(format string, args ...any)
-	Error(format string, args ...any)
-	SetOutput(out io.Writer)
-	SetVerbose(enabled bool)
-	SetQuiet(enabled bool)
-	IsVerbose() bool
-	IsQuiet() bool
-}
-
-// ConsoleLogger implements the Logger interface
+// ConsoleLogger writes log messages to stdout, and warnings and errors to stderr.
 type ConsoleLogger struct {
 	output      io.Writer
 	errOut      io.Writer
@@ -34,56 +20,27 @@ type ConsoleLogger struct {
 }
 
 var (
-	instance Logger
-	once     sync.Once
-	isTTY    bool
+	// std is the logger behind the package functions (logger.Debug, logger.Warn...).
+	std = &ConsoleLogger{output: os.Stdout, errOut: os.Stderr}
+	// Enable colors only if stdout is a terminal
+	isTTY = term.IsTerminal(int(os.Stdout.Fd()))
 )
 
-// GetLogger returns the singleton instance
-func GetLogger() Logger {
-	once.Do(func() {
-		instance = &ConsoleLogger{
-			output: os.Stdout,
-			errOut: os.Stderr,
-		}
-
-		// Enable colors only if stdout is a terminal
-		isTTY = term.IsTerminal(int(os.Stdout.Fd()))
-	})
-	return instance
-}
-
 // SetVerbose enables or disables verbose mode globally
-func SetVerbose(verbose bool) {
-	GetLogger().SetVerbose(verbose)
-}
+func SetVerbose(verbose bool) { std.SetVerbose(verbose) }
 
-func IsVerbose() bool {
-	return GetLogger().IsVerbose()
-}
+func IsVerbose() bool { return std.IsVerbose() }
 
-func SetQuiet(quiet bool) {
-	GetLogger().SetQuiet(quiet)
-}
-
-func IsQuiet() bool {
-	return GetLogger().IsQuiet()
-}
+func SetQuiet(quiet bool) { std.SetQuiet(quiet) }
 
 // Global helper functions for convenience
-func Info(format string, args ...any)    { GetLogger().Info(format, args...) }
-func Debug(format string, args ...any)   { GetLogger().Debug(format, args...) }
-func Success(format string, args ...any) { GetLogger().Success(format, args...) }
-func Warn(format string, args ...any)    { GetLogger().Warn(format, args...) }
-func Error(format string, args ...any)   { GetLogger().Error(format, args...) }
+func Info(format string, args ...any)    { std.Info(format, args...) }
+func Debug(format string, args ...any)   { std.Debug(format, args...) }
+func Success(format string, args ...any) { std.Success(format, args...) }
+func Warn(format string, args ...any)    { std.Warn(format, args...) }
+func Error(format string, args ...any)   { std.Error(format, args...) }
 
 // -------------------- Implementation --------------------
-
-func (l *ConsoleLogger) SetOutput(out io.Writer) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.output = out
-}
 
 func (l *ConsoleLogger) SetVerbose(enabled bool) {
 	l.mu.Lock()
@@ -99,10 +56,6 @@ func (l *ConsoleLogger) SetQuiet(enabled bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quietMode = enabled
-}
-
-func (l *ConsoleLogger) IsQuiet() bool {
-	return l.quietMode
 }
 
 func (l *ConsoleLogger) timestamp() string {
