@@ -281,14 +281,14 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 		if err != nil {
 			return "'{}'::jsonb"
 		}
-		return fmt.Sprintf("'%s'::jsonb", string(jsonStr))
+		return fmt.Sprintf("'%s'::jsonb", strings.ReplaceAll(string(jsonStr), "'", "''"))
 
 	case pgtype.JSONOID:
 		jsonStr, err := json.Marshal(val)
 		if err != nil {
 			return "'{}'::json"
 		}
-		return fmt.Sprintf("'%s'::json", string(jsonStr))
+		return fmt.Sprintf("'%s'::json", strings.ReplaceAll(string(jsonStr), "'", "''"))
 	}
 
 	// Generic SQL value formatting
@@ -305,15 +305,28 @@ func FormatSQLValue(val interface{}, valueType uint32) string {
 		}
 		elems := make([]string, len(v))
 		for i, elem := range v {
-			elems[i] = fmt.Sprintf("%v", elem)
+			elems[i] = sqlArrayElem(elem)
 		}
-		return fmt.Sprintf("'{%s}'", strings.Join(elems, ","))
+		return fmt.Sprintf("'{%s}'", strings.ReplaceAll(strings.Join(elems, ","), "'", "''"))
 
 	default:
 		str := fmt.Sprintf("%v", val)
 		escaped := strings.ReplaceAll(str, "'", "''")
 		return fmt.Sprintf("'%s'", escaped)
 	}
+}
+
+// sqlArrayElem formats one element of a PostgreSQL array literal.
+// Non-numeric elements are double-quoted so commas, braces, quotes and spaces stay inside the element.
+func sqlArrayElem(elem interface{}) string {
+	switch elem.(type) {
+	case nil:
+		return "NULL"
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+		return fmt.Sprintf("%v", elem)
+	}
+	s := strings.ReplaceAll(fmt.Sprintf("%v", elem), `\`, `\\`)
+	return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
 }
 
 // FormatXLSXValue formats a PostgreSQL value for Excel XLSX export.
