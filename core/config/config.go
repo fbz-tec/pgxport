@@ -72,9 +72,14 @@ func (c Config) Validate() error {
 // GetConnectionString builds a PostgreSQL connection string (DSN) from the configuration.
 // The returned string is in the format: postgres://user:password@host:port/dbname?sslmode=...
 func (c Config) GetConnectionString() string {
+	// An empty password in the URL would override PGPASSWORD and ~/.pgpass
+	user := url.User(c.DBUser)
+	if c.DBPass != "" {
+		user = url.UserPassword(c.DBUser, c.DBPass)
+	}
 	u := &url.URL{
 		Scheme: c.DBDriver,
-		User:   url.UserPassword(c.DBUser, c.DBPass),
+		User:   user,
 		Host:   fmt.Sprintf("%s:%d", c.DBHost, c.DBPort),
 		Path:   c.DBName,
 	}

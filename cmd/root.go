@@ -179,6 +179,35 @@ func Execute() {
 	}
 }
 
+// loadDBConfig loads the connection settings from .env and environment variables,
+// then applies the connection flags the user actually passed.
+func loadDBConfig(cmd *cobra.Command) config.Config {
+	logger.Debug("Loading configuration from environment and flags")
+	cfg := config.LoadConfig()
+	if dbHost != "" {
+		cfg.DBHost = dbHost
+		logger.Debug("Overriding DB host from flag: %s", dbHost)
+	}
+	// Changed, not "!= default": -P 5432 must override DB_PORT too
+	if cmd.Flags().Changed("port") {
+		cfg.DBPort = dbPort
+		logger.Debug("Overriding DB port from flag: %d", dbPort)
+	}
+	if dbUser != "" {
+		cfg.DBUser = dbUser
+		logger.Debug("Overriding DB user from flag: %s", dbUser)
+	}
+	if dbName != "" {
+		cfg.DBName = dbName
+		logger.Debug("Overriding DB name from flag: %s", dbName)
+	}
+	if dbPassword != "" {
+		cfg.DBPass = dbPassword
+		logger.Debug("Overriding DB password from flag (hidden)")
+	}
+	return cfg
+}
+
 // runExport is the main export function that orchestrates the export process.
 // It handles query execution, exporter selection, and result processing.
 func runExport(cmd *cobra.Command, args []string) error {
@@ -191,34 +220,12 @@ func runExport(cmd *cobra.Command, args []string) error {
 		logger.Debug("Using connection string from --dsn flag")
 		dbUrl = connString
 	} else {
-		logger.Debug("Loading configuration from environment and flags")
-		cfg := config.LoadConfig()
-		if dbHost != "" {
-			cfg.DBHost = dbHost
-			logger.Debug("Overriding DB host from flag: %s", dbHost)
-		}
-		if dbPort != 5432 {
-			cfg.DBPort = dbPort
-			logger.Debug("Overriding DB port from flag: %s", dbPort)
-		}
-		if dbUser != "" {
-			cfg.DBUser = dbUser
-			logger.Debug("Overriding DB user from flag: %s", dbUser)
-		}
-		if dbName != "" {
-			cfg.DBName = dbName
-			logger.Debug("Overriding DB name from flag: %s", dbName)
-		}
-		if dbPassword != "" {
-			cfg.DBPass = dbPassword
-			logger.Debug("Overriding DB password from flag (hidden)")
-		}
-
+		cfg := loadDBConfig(cmd)
 		if err := cfg.Validate(); err != nil {
 			return fmt.Errorf("configuration error: %w", err)
 		}
 		dbUrl = cfg.GetConnectionString()
-		logger.Debug("Configuration loaded: host=%s port=%s database=%s user=%s",
+		logger.Debug("Configuration loaded: host=%s port=%d database=%s user=%s",
 			cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBUser)
 	}
 

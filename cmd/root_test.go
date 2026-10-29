@@ -262,6 +262,29 @@ func TestParseDelimiter(t *testing.T) {
 	}
 }
 
+// TestLoadDBConfigPortFlag checks that an explicit -P overrides DB_PORT,
+// even when its value equals the flag default (5432).
+func TestLoadDBConfigPortFlag(t *testing.T) {
+	t.Setenv("DB_PORT", "5433")
+	portFlag := rootCmd.Flags().Lookup("port")
+	originalPort := dbPort
+	t.Cleanup(func() {
+		portFlag.Changed = false
+		dbPort = originalPort
+	})
+
+	if got := loadDBConfig(rootCmd).DBPort; got != 5433 {
+		t.Errorf("without -P: port = %d, want DB_PORT 5433", got)
+	}
+
+	if err := rootCmd.Flags().Set("port", "5432"); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadDBConfig(rootCmd).DBPort; got != 5432 {
+		t.Errorf("with -P 5432: port = %d, want 5432", got)
+	}
+}
+
 func TestValidateExportParams(t *testing.T) {
 	// Save original values
 	originalSqlQuery := sqlQuery

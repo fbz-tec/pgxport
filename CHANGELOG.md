@@ -34,6 +34,10 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - **XML export: column names are always valid XML element names.**
   Column names were used as element names as is, so `SELECT 1+1` (column `?column?`), or aliases such as `"my col"`, `"1st"` or `"a&b"`, made the whole document invalid. Characters not allowed in XML names are now replaced with `_`, and names that cannot start an element get a `_` prefix (`?column?` → `_column_`, `1st` → `_1st`). Valid names are unchanged.
 - **`--xml-root-tag` and `--xml-row-tag` are validated.** An invalid element name (e.g. `"my row"`) is now rejected with a clear error instead of producing an invalid document.
+- **`--port 5432` now overrides `DB_PORT`.**
+  The port flag was only applied when it differed from its default value, so `-P 5432` was ignored when `.env` or the environment set another port. The verbose log also printed the port as `%!s(int=5433)`.
+- **`PGPASSWORD` and `~/.pgpass` now work when `DB_PASS` is not set.**
+  An empty password was always written into the connection URL, which overrode `PGPASSWORD` and `~/.pgpass`, although the README recommends `PGPASSWORD`. `DB_PASS` and `--password` still take precedence when set.
 
 ### ⚠️ Behavior changes
 

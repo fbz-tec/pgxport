@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -258,7 +260,8 @@ func TestGetConnectionString(t *testing.T) {
 				DBPort:   5432,
 				DBName:   "testdb",
 			},
-			expected: "postgres://user:@localhost:5432/testdb",
+			// No ":" before "@": an empty password would override PGPASSWORD and ~/.pgpass
+			expected: "postgres://user@localhost:5432/testdb",
 		},
 	}
 
@@ -269,6 +272,30 @@ func TestGetConnectionString(t *testing.T) {
 				t.Errorf("GetConnectionString() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+// TestConnectionStringUsesPGPASSWORD checks that without DB_PASS the password comes
+// from PGPASSWORD (as the README advises), and that DB_PASS still wins when set.
+func TestConnectionStringUsesPGPASSWORD(t *testing.T) {
+	t.Setenv("PGPASSWORD", "from-env")
+	cfg := Config{DBDriver: "postgres", DBUser: "user", DBHost: "localhost", DBPort: 5432, DBName: "testdb"}
+
+	parsed, err := pgconn.ParseConfig(cfg.GetConnectionString())
+	if err != nil {
+		t.Fatalf("ParseConfig() error: %v", err)
+	}
+	if parsed.Password != "from-env" {
+		t.Errorf("password = %q, want PGPASSWORD value %q", parsed.Password, "from-env")
+	}
+
+	cfg.DBPass = "from-db-pass"
+	parsed, err = pgconn.ParseConfig(cfg.GetConnectionString())
+	if err != nil {
+		t.Fatalf("ParseConfig() error: %v", err)
+	}
+	if parsed.Password != "from-db-pass" {
+		t.Errorf("password = %q, want DB_PASS value %q", parsed.Password, "from-db-pass")
 	}
 }
 
