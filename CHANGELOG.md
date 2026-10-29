@@ -31,6 +31,9 @@ Bug-fix release focused on data correctness: exported files now always contain e
   COPY mode failed with a syntax error on queries ending with `;` (most `.sql` files) and on queries ending with a `--` comment. The final `;` is now removed before the query is run, in both modes.
 - **A comment after the final `;` is no longer rejected.**
   `SELECT ...; -- end of report` was refused as "multiple statements". A real second statement after the comment is still refused.
+- **XML export: column names are always valid XML element names.**
+  Column names were used as element names as is, so `SELECT 1+1` (column `?column?`), or aliases such as `"my col"`, `"1st"` or `"a&b"`, made the whole document invalid. Characters not allowed in XML names are now replaced with `_`, and names that cannot start an element get a `_` prefix (`?column?` → `_column_`, `1st` → `_1st`). Valid names are unchanged.
+- **`--xml-root-tag` and `--xml-row-tag` are validated.** An invalid element name (e.g. `"my row"`) is now rejected with a clear error instead of producing an invalid document.
 
 ### ⚠️ Behavior changes
 
@@ -41,6 +44,7 @@ Bug-fix release focused on data correctness: exported files now always contain e
 - `bytea` columns are exported as `\x` + hex in every format. Text stored in a `bytea` column now appears as `\x48656c6c6f` instead of `Hello`.
 - In SQL exports, `timestamptz` values are always written in UTC (`+00:00`), whatever the time zone of the machine running pgxport. The stored instant is unchanged.
 - A query that writes data now fails at execution with a PostgreSQL error (`cannot execute ... in a read-only transaction`) instead of being exported. Non-`SELECT`/`WITH` statements are reported as `unsupported SQL command` instead of `forbidden SQL command detected`.
+- In XML exports, columns whose names are not valid XML names get a different element name (see above). Two columns can end up with the same element name (`"a b"` and `"a_b"` both become `<a_b>`); the document stays valid and column order is kept.
 
 ## [v2.0.0] - 2025-01-05
 Stable release of pgxport v2.0.0. No changes since rc2. Recommended for production use.

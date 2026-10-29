@@ -550,6 +550,83 @@ func TestWriteXMLJSONAndArrays(t *testing.T) {
 	}
 }
 
+func TestXMLName(t *testing.T) {
+	tests := map[string]string{
+		"id":       "id",
+		"total_2":  "total_2",
+		"é":        "é",
+		"a.b-c":    "a.b-c",
+		"?column?": "_column_",
+		"my col":   "my_col",
+		"1st":      "_1st",
+		"a&b":      "a_b",
+		"prix (€)": "prix____",
+		"-x":       "_-x",
+		"":         "_",
+	}
+	for in, want := range tests {
+		if got := xmlName(in); got != want {
+			t.Errorf("xmlName(%q) = %q, want %q", in, got, want)
+		}
+		if ValidXMLName(in) != (in == want) {
+			t.Errorf("ValidXMLName(%q) = %v, want %v", in, ValidXMLName(in), in == want)
+		}
+	}
+}
+
+// TestWriteXMLColumnNames checks that column names which are not valid XML names
+// (generated ?column?, spaces, leading digit, &) still produce a readable document.
+func TestWriteXMLColumnNames(t *testing.T) {
+	conn, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	rows, err := conn.Query(context.Background(), `SELECT 1+1, 'v1' AS "my col", 'v2' AS "1st", 'v3' AS "a&b", 'v4' AS "é"`)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+	defer rows.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.xml")
+	exporter, err := Get(FormatXML)
+	if err != nil {
+		t.Fatalf("Failed to get xml exporter: %v", err)
+	}
+	_, err = exporter.Export(rows, ExportOptions{
+		Format:         FormatXML,
+		OutputPath:     outputPath,
+		Compression:    "none",
+		XmlRootElement: "results",
+		XmlRowElement:  "row",
+	})
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	var doc struct {
+		Rows []struct {
+			Column string `xml:"_column_"`
+			MyCol  string `xml:"my_col"`
+			First  string `xml:"_1st"`
+			AB     string `xml:"a_b"`
+			E      string `xml:"é"`
+		} `xml:"row"`
+	}
+	if err := xml.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("Invalid XML: %v\n%s", err, content)
+	}
+	if len(doc.Rows) != 1 {
+		t.Fatalf("Expected 1 row, got %d\n%s", len(doc.Rows), content)
+	}
+	got := doc.Rows[0]
+	if got.Column != "2" || got.MyCol != "v1" || got.First != "v2" || got.AB != "v3" || got.E != "v4" {
+		t.Errorf("unexpected values %+v\n%s", got, content)
+	}
+}
+
 func TestWriteXMLCustomTags(t *testing.T) {
 	conn, cleanup := setupTestDB(t)
 	defer cleanup()
