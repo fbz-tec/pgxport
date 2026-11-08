@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fbz-tec/pgxport/internal/version"
+	"github.com/fbz-tec/pgxport/v2/internal/version"
 	"github.com/spf13/cobra"
 )
 

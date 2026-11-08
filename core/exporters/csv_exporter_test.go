@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fbz-tec/pgxport/core/validation"
+	"github.com/fbz-tec/pgxport/v2/core/validation"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -308,7 +308,7 @@ func TestWriteCSVDataTypes(t *testing.T) {
 	outputPath := filepath.Join(tmpDir, "output.csv")
 
 	query := `
-		SELECT 
+		SELECT
 			1::integer as int_col,
 			3.14::numeric as numeric_col,
 			'text value'::text as text_col,

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/v2/internal/logger"
 )
 
 // newZipWriter creates the archive at path (already ending in .zip, see FinalPath)

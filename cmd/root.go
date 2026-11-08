@@ -6,13 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fbz-tec/pgxport/core/config"
-	"github.com/fbz-tec/pgxport/core/db"
-	"github.com/fbz-tec/pgxport/core/exporters"
-	"github.com/fbz-tec/pgxport/core/output"
-	"github.com/fbz-tec/pgxport/core/validation"
-	"github.com/fbz-tec/pgxport/internal/logger"
-	"github.com/fbz-tec/pgxport/internal/version"
+	"github.com/fbz-tec/pgxport/v2/core/config"
+	"github.com/fbz-tec/pgxport/v2/core/db"
+	"github.com/fbz-tec/pgxport/v2/core/exporters"
+	"github.com/fbz-tec/pgxport/v2/core/output"
+	"github.com/fbz-tec/pgxport/v2/core/validation"
+	"github.com/fbz-tec/pgxport/v2/internal/logger"
+	"github.com/fbz-tec/pgxport/v2/internal/version"
 	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -56,7 +56,7 @@ var rootCmd = &cobra.Command{
 	Short: "Export PostgreSQL query results to CSV, JSON, XML, YAML or SQL formats",
 	Long: `A powerful CLI tool to export PostgreSQL query results.
 It supports direct SQL queries or SQL files, with customizable output options.
-		
+
 Supported output formats:
  • CSV  — standard text export with customizable delimiter
  • JSON — structured export for API or data processing
@@ -74,7 +74,7 @@ Supported output formats:
 
   # Export to JSON
   pgxport -s "SELECT * FROM products" -o products.json -f json
-  
+
   # Export to XML
   pgxport -s "SELECT * FROM orders" -o orders.xml -f xml
 

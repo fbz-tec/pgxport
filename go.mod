@@ -1,4 +1,4 @@
-module github.com/fbz-tec/pgxport
+module github.com/fbz-tec/pgxport/v2
 
 go 1.27.3
 

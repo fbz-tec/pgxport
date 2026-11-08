@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fbz-tec/pgxport/internal/logger"
+	"github.com/fbz-tec/pgxport/v2/internal/logger"
 )
 
 func newGzipWriter(path string) (io.WriteCloser, error) {

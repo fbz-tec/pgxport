@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fbz-tec/pgxport/core/formatters"
+	"github.com/fbz-tec/pgxport/v2/core/formatters"
 )
 
 // ValidateTimeZone checks if a timezone string is valid.

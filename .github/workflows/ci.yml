@@ -35,7 +35,7 @@ jobs:
           --health-retries=5
     env:
       DB_TEST_URL: postgres://pgxport:pgxport@localhost:5432/testdb?sslmode=disable
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -75,8 +75,8 @@ jobs:
           GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           VERSION="dev-${GIT_COMMIT}"
           BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          MODULE="github.com/fbz-tec/pgxport"
-          
+          MODULE="github.com/fbz-tec/pgxport/v2"
+
           # ldflags for internal/version package
           LDFLAGS="-X ${MODULE}/internal/version.AppVersion=${VERSION} \
                    -X ${MODULE}/internal/version.GitCommit=${GIT_COMMIT} \
@@ -97,7 +97,7 @@ jobs:
           name: pgxport-linux-amd64
           path: build/pgxport
           retention-days: 3
-      
+
       - name: 📤 Upload Windows artifact
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/next'
         uses: actions/upload-artifact@v4
@@ -105,7 +105,7 @@ jobs:
           name: pgxport-windows-amd64
           path: build/pgxport.exe
           retention-days: 3
-            
+
       - name: 🧹 Cleanup build directory
         if: always()
         run: |
@@ -136,8 +136,8 @@ jobs:
           VERSION="${{ github.ref_name }}"
           BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           GIT_COMMIT=$(git rev-parse --short HEAD)
-          MODULE="github.com/fbz-tec/pgxport"
-          
+          MODULE="github.com/fbz-tec/pgxport/v2"
+
           LDFLAGS="-s -w \
                    -X ${MODULE}/internal/version.AppVersion=${VERSION} \
                    -X ${MODULE}/internal/version.BuildTime=${BUILD_TIME} \
@@ -150,19 +150,19 @@ jobs:
 
           # Linux ARM64
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/pgxport-linux-arm64
-          
+
           # macOS AMD64 (Intel)
           GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/pgxport-darwin-amd64
-          
+
           # macOS ARM64 (Apple Silicon)
           GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/pgxport-darwin-arm64
-          
+
           # Windows AMD64
           GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/pgxport-windows-amd64.exe
-          
+
           # Windows ARM64
           GOOS=windows GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/pgxport-windows-arm64.exe
-          
+
           echo "✅ All binaries built successfully"
 
       - name: 📦 Create platform-specific archives with documentation
@@ -171,38 +171,38 @@ jobs:
           cp CHANGELOG.md dist/ 2>/dev/null || echo "⚠️  CHANGELOG.md not found"
           cp README.md dist/ 2>/dev/null || echo "⚠️  README.md not found"
           cp LICENSE dist/ 2>/dev/null || echo "⚠️  LICENSE not found"
-          
+
           cd dist
-          
+
           echo "📦 Creating platform-specific archives..."
-          
+
           # Linux AMD64 - tar.gz
           tar -czf pgxport-linux-amd64.tar.gz pgxport-linux-amd64 CHANGELOG.md README.md LICENSE
           rm pgxport-linux-amd64
-          
+
           # Linux ARM64 - tar.gz
           tar -czf pgxport-linux-arm64.tar.gz pgxport-linux-arm64 CHANGELOG.md README.md LICENSE
           rm pgxport-linux-arm64
-          
+
           # macOS AMD64 - tar.gz
           tar -czf pgxport-darwin-amd64.tar.gz pgxport-darwin-amd64 CHANGELOG.md README.md LICENSE
           rm pgxport-darwin-amd64
-          
+
           # macOS ARM64 - tar.gz
           tar -czf pgxport-darwin-arm64.tar.gz pgxport-darwin-arm64 CHANGELOG.md README.md LICENSE
           rm pgxport-darwin-arm64
-          
+
           # Windows AMD64 - zip
           zip -j pgxport-windows-amd64.zip pgxport-windows-amd64.exe CHANGELOG.md README.md LICENSE
           rm pgxport-windows-amd64.exe
-          
+
           # Windows ARM64 - zip
           zip -j pgxport-windows-arm64.zip pgxport-windows-arm64.exe CHANGELOG.md README.md LICENSE
           rm pgxport-windows-arm64.exe
-          
+
           # Cleanup docs
           rm -f CHANGELOG.md README.md LICENSE
-          
+
           echo ""
           echo "✅ Archives created:"
           ls -lh *.tar.gz *.zip
@@ -222,11 +222,11 @@ jobs:
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           body: |
-            
+
             ## 📦 Downloads
-            
+
             ### Binary Releases
-            
+
             | Platform | Architecture | Download |
             |----------|-------------|----------|
             | Linux | x86_64 (AMD64) | `pgxport-linux-amd64.tar.gz` |
@@ -235,12 +235,12 @@ jobs:
             | macOS | Apple Silicon (ARM64) | `pgxport-darwin-arm64.tar.gz` |
             | Windows | x86_64 (AMD64) | `pgxport-windows-amd64.zip` |
             | Windows | ARM64 | `pgxport-windows-arm64.zip` |
-            
+
             Each archive contains: binary + CHANGELOG + README + LICENSE
-            
-            
+
+
             ## 📚 Documentation
-            
+
             - **Installation & Usage**: See [README.md](https://github.com/fbz-tec/pgxport#readme)
             - **What's New**: See [CHANGELOG.md](https://github.com/fbz-tec/pgxport/blob/${{ github.ref_name }}/CHANGELOG.md)
             - **Verify downloads**: Check `checksums.txt` (SHA256)

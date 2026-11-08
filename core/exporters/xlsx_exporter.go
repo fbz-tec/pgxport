@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fbz-tec/pgxport/core/formatters"
-	"github.com/fbz-tec/pgxport/core/output"
-	"github.com/fbz-tec/pgxport/internal/logger"
-	"github.com/fbz-tec/pgxport/internal/ui"
+	"github.com/fbz-tec/pgxport/v2/core/formatters"
+	"github.com/fbz-tec/pgxport/v2/core/output"
+	"github.com/fbz-tec/pgxport/v2/internal/logger"
+	"github.com/fbz-tec/pgxport/v2/internal/ui"
 	"github.com/jackc/pgx/v5"
 	"github.com/xuri/excelize/v2"
 )
